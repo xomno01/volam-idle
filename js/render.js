@@ -307,17 +307,22 @@ function drawRemoteHero(c, p, dt) {
 
   c.fillStyle = '#0007'; c.beginPath(); c.ellipse(p.x, p.y, 16, 6, 0, 0, 7); c.fill();
 
-  const hw = W && W.hero && W.hero[p.fac || 0];
+  const hw = (W && W.hero && (W.hero[p.fac] || (typeof S !== 'undefined' && W.hero[S.fac]) || Object.values(W.hero)[0])) || null;
   const animKey = hw && hw.anim;
-  const act = p.isAttacking ? 'at' : (moving ? 'run' : 'st');
-  p.actT = (p.actT || 0) + dt;
-
-  const drawn = animKey && drawAnim(animKey, act, p.dir || 0, p.actT, p.x, p.y, HERO_SCALE);
-  if (!drawn && hw && hw.img) {
-    drawSprite(img(hw.img), hw.sz, p.x, p.y, 0.9, false);
+  const targetAct = p.isAttacking ? 'at' : (moving ? 'run' : 'st');
+  if (p.act !== targetAct) {
+    p.act = targetAct;
+    p.actT = 0;
+  } else {
+    p.actT = (p.actT || 0) + dt;
   }
 
-  const facName = (FAC && FAC[p.fac] && FAC[p.fac].n) || 'Võ Lâm';
+  const drawn = animKey && drawAnim(animKey, p.act, p.dir || 0, p.actT, p.x, p.y, HERO_SCALE);
+  if (!drawn && hw && hw.img) {
+    drawSprite(img(hw.img), hw.sz, p.x, p.y, 0.9, [3, 4, 5].includes(p.dir || 0));
+  }
+
+  const facName = (FAC && FAC[p.fac] && FAC[p.fac].n) || (hw && hw.n) || 'Võ Lâm';
   label(p.x, p.y - 60, `[${facName}] ${p.name || 'Đại hiệp'} · Lv${p.lvl || 1}`, '#5fd4ff', 12, (p.hp || 100) / (p.maxHp || 100), '#38bdf8');
 
   if (p.chatBubble && p.chatT > 0) {
@@ -377,13 +382,13 @@ function draw(dt) {
       drawHeroAura(c, performance.now() / 1000, true);
       const hw = W.hero[S.fac];
       H.animKey = hw && hw.anim;
-      const mvx = H.x - (H.px ?? H.x), mvy = H.y - (H.py ?? H.y); H.px = H.x; H.py = H.y;
-      H.moving = Math.hypot(mvx, mvy) > 0.4; if (H.moving && H.act !== 'at') H.dir = dirOf(mvx, mvy);
-      stepAct(H, dt, H.moving ? 'run' : 'st');
-      if (R.deadT > 0) setAct(H, 'die'); else if (H.act !== 'at' && H.act !== 'hurt') setAct(H, H.moving ? 'run' : 'st');
+      const isMoving = !!H._isMoving;
+      H.moving = isMoving;
+      stepAct(H, dt, isMoving ? 'run' : 'st');
+      if (R.deadT > 0) setAct(H, 'die'); else if (H.act !== 'at' && H.act !== 'hurt') setAct(H, isMoving ? 'run' : 'st');
       const drawn = hw && hw.anim && drawAnim(hw.anim, H.act || 'st', H.dir || 0, H.actT || 0, H.x, H.y, HERO_SCALE);
       label(H.x, H.y - (drawn ? Math.min(drawn, 90) * 0.9 : 52) - 6, `${S.name || (FAC[S.fac] && FAC[S.fac].n) || ''} · Lv${S.lvl}`, NAME_COL.hero, 12, R.life / Math.max(1, R.P.life), '#4fd04f');
-      if (!drawn && !(hw && drawSprite(img(hw.img), hw.sz, H.x, H.y, 0.9, H.face < 0, R.deadT > 0 ? 0.35 : 1))) { c.fillStyle = SERIES_COL[heroSeries()]; c.beginPath(); c.arc(H.x, H.y - 20, 14, 0, 7); c.fill(); }
+      if (!drawn && !(hw && drawSprite(img(hw.img), hw.sz, H.x, H.y, 0.9, [3, 4, 5].includes(H.dir || 0), R.deadT > 0 ? 0.35 : 1))) { c.fillStyle = SERIES_COL[heroSeries()]; c.beginPath(); c.arc(H.x, H.y - 20, 14, 0, 7); c.fill(); }
       if (R.hurtT > 0) { c.fillStyle = '#f004'; c.beginPath(); c.arc(H.x, H.y - 24, 20, 0, 7); c.fill(); }
       drawHeroAura(c, performance.now() / 1000, false);
       if (H.chatBubble && H.chatT > 0) { H.chatT -= dt; drawChatBubble(c, H.x, H.y - 70, H.chatBubble); }

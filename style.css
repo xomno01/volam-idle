@@ -63,6 +63,9 @@ body.sv #battle{flex:1 1 auto}
 .svcell .cd{position:absolute;inset:0;background:conic-gradient(#000c calc(var(--cd,0)*360deg),transparent 0)}
 .svrow.pas .svcell{border-color:var(--line2)} .svrow.pas .svcell img{opacity:.85}
 /* phan thuong (rewards.js) */
+#accountBtn{position:relative;flex:none;height:36px;padding:0 9px;border-radius:18px;border:1px solid #38bdf8aa;background:radial-gradient(#1e293b,#0b131e);color:#7dd3fc;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:4px;cursor:pointer;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .15s ease}
+#accountBtn:hover{border-color:#38bdf8;box-shadow:0 0 10px rgba(56,189,248,0.45);color:#fff}
+#accountBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #giftBtn, #adminQuickBtn{position:relative;flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--gold2);background:radial-gradient(#3a2f1c,#120d06);font-size:16px;line-height:38px;cursor:pointer}
 #adminQuickBtn:hover{border-color:#ffeb99;box-shadow:0 0 8px rgba(255,215,0,0.5)}
 #giftBtn.on::after{content:"";position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:#e0402a;box-shadow:0 0 0 2px #0f1613;animation:gpulse 1.2s infinite}

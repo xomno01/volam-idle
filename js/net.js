@@ -686,6 +686,10 @@ const NET = {
   },
 
   updateAuthButton() {
+    const txt = document.getElementById('accountUserTxt');
+    if (txt) {
+      txt.textContent = this.user ? this.user.username : 'Tài khoản';
+    }
     const badge = document.getElementById('onlineStatusBadge');
     if (badge && this.user) {
       badge.title = `Tài khoản: ${this.user.username} (Nhấp để quản lý)`;
@@ -693,55 +697,110 @@ const NET = {
   },
 
   showAuthModal() {
-    if (this.user) {
-      modal(`
-        <h3>⚔️ Tài Khoản Võ Lâm Online</h3>
-        <div class="card">
-          <p>Hiệp khách: <b style="color:#7fffc0; font-size:15px;">${esc(this.user.username)}</b></p>
-          <p class="dim small" style="margin-top:4px;">Dữ liệu nhân vật, cấp độ và đồ đạc được đồng bộ tự động lên máy chủ VPS.</p>
-          <div class="btnrow" style="margin-top:14px;">
-            <button class="btn" id="bSaveCloud">☁️ Lưu Lên Đám Mây</button>
-            <button class="btn" id="bLoadCloud">☁️ Tải Từ Đám Mây</button>
-          </div>
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="btn red" id="bLogout" style="width:100%">🚪 Đăng Xuất Tài Khoản</button>
-          </div>
-        </div>
-      `, () => {
-        $('#bSaveCloud').onclick = async () => {
-          const res = await this.saveCloud(0);
-          toast(res.ok ? '✅ Đã lưu nhân vật lên máy chủ an toàn!' : '⚠️ Lỗi: ' + res.error);
-        };
-        $('#bLoadCloud').onclick = async () => {
-          const res = await this.loadCloud(0);
-          if (res.ok && res.state) {
-            window.S = res.state;
-            save();
-            toast('✅ Đã nạp nhân vật từ đám mây thành công!');
-            setTimeout(() => location.reload(), 600);
-          } else {
-            toast('⚠️ Chưa có bản lưu nào trên máy chủ');
-          }
-        };
-        $('#bLogout').onclick = () => {
-          localStorage.removeItem('vlo_token');
-          localStorage.removeItem('vlo_user');
-          this.token = null;
-          this.user = null;
-          if (this.ws) {
-            this.ws.onclose = null;
-            this.ws.close();
-          }
-          closeModal(true);
-          toast('Đã đăng xuất tài khoản.');
-          this.updateAuthButton();
-          this.showAuthGate();
-        };
-      });
+    this.showAccountModal();
+  },
+
+  showAccountModal() {
+    if (!this.user) {
+      this.showAuthGate();
       return;
     }
+    const host = this.getServerHost();
+    const wsStatus = (this.ws && this.ws.readyState === WebSocket.OPEN) 
+      ? '<span style="color:#4ade80;">🟢 Đang kết nối Online</span>' 
+      : '<span style="color:#f87171;">🔴 Ngoại tuyến / Mất kết nối</span>';
 
-    this.showAuthGate();
+    const charInfo = (typeof S !== 'undefined' && S.fac) 
+      ? `${S.name || 'Hiệp khách'} · Lv${S.lvl || 1} (${(FAC && FAC[S.fac] && FAC[S.fac].n) || 'Chưa phái'})`
+      : 'Chưa khởi tạo nhân vật';
+
+    modal(`
+      <h3 style="color:#38bdf8;">👤 Quản Lý Tài Khoản & Máy Chủ</h3>
+      <div class="card" style="padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span>Tài khoản:</span>
+          <b style="color:#38bdf8; font-size:15px;">${esc(this.user.username)}</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span>Nhân vật:</span>
+          <b style="color:#fbbf24;">${esc(charInfo)}</b>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span>Máy chủ:</span>
+          <code style="color:#94a3b8; font-size:11px;">${esc(host)}</code>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Trạng thái:</span>
+          <b>${wsStatus}</b>
+        </div>
+      </div>
+
+      <div class="btnrow" style="margin-bottom:8px;">
+        <button class="btn" id="bOpenServerModal" style="flex:1;">🌐 Đổi Máy Chủ</button>
+        <button class="btn" id="bSaveCloud" style="flex:1;">☁️ Lưu Lên Mây</button>
+        <button class="btn" id="bLoadCloud" style="flex:1;">☁️ Tải Từ Mây</button>
+      </div>
+
+      <div class="btnrow" style="margin-top:14px;">
+        <button class="btn red" id="bLogoutTrigger" style="width:100%; justify-content:center; padding:11px; font-weight:700; border-radius:8px;">
+          🚪 Đăng Xuất Đổi Tài Khoản
+        </button>
+      </div>
+    `, () => {
+      $('#bOpenServerModal').onclick = () => {
+        closeModal(true);
+        this.showServerModal();
+      };
+      $('#bSaveCloud').onclick = async () => {
+        const res = await this.saveCloud(0);
+        toast(res.ok ? '✅ Đã lưu nhân vật lên máy chủ an toàn!' : '⚠️ Lỗi: ' + res.error);
+      };
+      $('#bLoadCloud').onclick = async () => {
+        const res = await this.loadCloud(0);
+        if (res.ok && res.state) {
+          window.S = res.state;
+          save();
+          toast('✅ Đã nạp nhân vật từ đám mây thành công!');
+          setTimeout(() => location.reload(), 600);
+        } else {
+          toast('⚠️ Chưa có bản lưu nào trên máy chủ');
+        }
+      };
+      $('#bLogoutTrigger').onclick = () => {
+        this.logout();
+      };
+    });
+  },
+
+  logout() {
+    modal(`
+      <h3 style="color:#ef4444;">🚪 Đăng Xuất Tài Khoản?</h3>
+      <p class="desc">Bạn có muốn đăng xuất khỏi tài khoản <b>${esc(this.user ? this.user.username : '')}</b> để đổi sang tài khoản khác không?</p>
+      <div class="card" style="margin:10px 0; font-size:12px; color:#94a3b8;">
+        Tiến trình nhân vật của bạn sẽ được tự động lưu lên đám mây máy chủ trước khi đăng xuất.
+      </div>
+      <div class="btnrow">
+        <button class="btn" onclick="closeModal()">Hủy</button>
+        <button class="btn red" id="bConfirmLogout" style="font-weight:700;">Đăng Xuất Ngay</button>
+      </div>
+    `, () => {
+      $('#bConfirmLogout').onclick = async () => {
+        try { await this.saveCloud(0); } catch (e) {}
+        localStorage.removeItem('vlo_token');
+        localStorage.removeItem('vlo_user');
+        this.token = null;
+        this.user = null;
+        if (this.ws) {
+          this.ws.onclose = null;
+          try { this.ws.close(); } catch (e) {}
+          this.ws = null;
+        }
+        closeModal(true);
+        this.updateAuthButton();
+        if (typeof toast === 'function') toast('Đã đăng xuất tài khoản.');
+        this.showAuthGate();
+      };
+    });
   },
 
   /* ================= THÔNG BÁO QUẢN TRỊ TOÀN SERVER (BANNER) ================= */
@@ -843,8 +902,8 @@ const NET = {
           </div>
 
           <div class="auth-footer" style="margin-top: 18px; border-top: 1px solid #1a2e22; padding-top: 12px; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
-            <span>Máy chủ: VPS Windows (Online 24/7)</span>
-            <a href="javascript:void(0)" onclick="NET.promptServerHost()" style="color: #38bdf8; text-decoration: none;">⚙️ Đổi Máy Chủ</a>
+            <span>Máy chủ: <b style="color: #38bdf8;" id="authServerDisplay">${esc(NET.getServerHost())}</b></span>
+            <button class="btn sm" onclick="NET.showServerModal()" style="color: #38bdf8; background: #0f172a; border: 1px solid #1e293b; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;">⚙️ Đổi Máy Chủ</button>
           </div>
         </div>
       `;
@@ -856,6 +915,9 @@ const NET = {
       document.getElementById('authUsername').addEventListener('keydown', handleKey);
       document.getElementById('authPassword').addEventListener('keydown', handleKey);
       document.getElementById('authPasswordConfirm').addEventListener('keydown', handleKey);
+    } else {
+      const d = document.getElementById('authServerDisplay');
+      if (d) d.textContent = this.getServerHost();
     }
 
     overlay.style.display = 'flex';
@@ -932,9 +994,14 @@ const NET = {
       if (typeof recalc === 'function') recalc();
       if (typeof refresh === 'function') refresh();
     } else {
-      // Tài khoản mới chưa có phái
-      if (typeof S !== 'undefined' && !S.fac) {
-        if (typeof pickFaction === 'function') pickFaction();
+      // Tài khoản mới hoặc chưa có bản lưu: khởi tạo mới cho tài khoản này
+      if (typeof newSave === 'function') {
+        window.S = newSave();
+        S.name = this.user.username;
+        if (typeof save === 'function') save();
+      }
+      if (typeof pickFaction === 'function') {
+        pickFaction();
       }
     }
 
@@ -944,16 +1011,68 @@ const NET = {
   },
 
   promptServerHost() {
+    this.showServerModal();
+  },
+
+  showServerModal() {
     const cur = this.getServerHost();
-    const val = prompt('Nhập địa chỉ máy chủ WebSocket / API (mặc định: để trống nếu cùng domain):', cur === location.host ? '' : cur);
-    if (val !== null) {
-      if (val.trim()) {
-        localStorage.setItem('vlo_server_host', val.trim());
-      } else {
+    modal(`
+      <h3 style="color:#38bdf8;">🌐 Chọn & Cấu Hình Máy Chủ</h3>
+      <div class="card" style="margin-bottom:12px;">
+        <p class="desc">Chọn máy chủ kết nối để chơi cùng bạn bè qua Cloudflare Tunnel hoặc máy chủ VPS:</p>
+        
+        <div style="margin:10px 0; display:flex; flex-direction:column; gap:8px;">
+          <button class="btn" id="pLocalhost" style="justify-content:flex-start; text-align:left; padding:8px 12px;">
+            🏠 <b>Máy Cục Bộ / VPS (localhost:3000)</b>
+          </button>
+          <button class="btn" id="pCloudflare" style="justify-content:flex-start; text-align:left; padding:8px 12px;">
+            ☁️ <b>Cloudflare Tunnel / Pages (.pages.dev / .trycloudflare.com)</b>
+          </button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label style="font-size:12px; color:#94a3b8; display:block; margin-bottom:4px;">Địa chỉ IP / Domain máy chủ:</label>
+          <input id="customServerInput" value="${cur === location.host ? '' : esc(cur)}" placeholder="Ví dụ: my-tunnel.trycloudflare.com hoặc 103.x.x.x:3000" style="width:100%; padding:8px 10px; background:#0b131e; border:1px solid #334155; border-radius:6px; color:#fff; font-size:13px;">
+          <small class="dim" style="display:block; margin-top:4px;">Để trống nếu kết nối cùng host với trang web đang mở.</small>
+        </div>
+      </div>
+
+      <div class="btnrow">
+        <button class="btn" id="bResetServer" style="background:#334155;">Mặc Định</button>
+        <button class="btn" id="bSaveServer" style="background:#059669; font-weight:700;">Lưu & Kết Nối Lại</button>
+      </div>
+    `, () => {
+      $('#pLocalhost').onclick = () => {
+        $('#customServerInput').value = 'localhost:3000';
+      };
+      $('#pCloudflare').onclick = () => {
+        const val = prompt('Dán đường dẫn Cloudflare Tunnel hoặc Cloudflare Pages của bạn:\n(Ví dụ: https://xxx.trycloudflare.com hoặc https://xxx.pages.dev)', $('#customServerInput').value || '');
+        if (val) {
+          const cleaned = val.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '').replace(/\/$/, '');
+          $('#customServerInput').value = cleaned;
+        }
+      };
+      $('#bResetServer').onclick = () => {
         localStorage.removeItem('vlo_server_host');
-      }
-      location.reload();
-    }
+        closeModal(true);
+        toast('Đã đặt lại máy chủ mặc định!');
+        setTimeout(() => location.reload(), 400);
+      };
+      $('#bSaveServer').onclick = () => {
+        const val = ($('#customServerInput').value || '').trim();
+        const cleaned = val.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '').replace(/\/$/, '');
+        if (cleaned) {
+          localStorage.setItem('vlo_server_host', cleaned);
+          closeModal(true);
+          toast(`Đã đổi máy chủ: ${cleaned}`);
+        } else {
+          localStorage.removeItem('vlo_server_host');
+          closeModal(true);
+          toast('Đã chuyển về máy chủ mặc định!');
+        }
+        setTimeout(() => location.reload(), 500);
+      };
+    });
   }
 };
 

@@ -27,9 +27,19 @@ function simulateFrame(dt) {
   while (simAcc >= STEP && n < MAX_STEPS) {
     for (const o of movers()) { o._px = o.x; o._py = o.y; }
     if (SV.on) svTick(STEP); else tick(STEP);
+    const hdx = H.x - H._px, hdy = H.y - H._py;
+    if (Math.hypot(hdx, hdy) > 0.08) {
+      H._lastMoveTime = performance.now();
+      H._isMoving = true;
+      if (H.act !== 'at' && typeof dirOf === 'function') H.dir = dirOf(hdx, hdy);
+      if (Math.abs(hdx) > 0.02) H.face = hdx >= 0 ? 1 : -1;
+    }
     simAcc -= STEP; n++;
   }
   if (n === MAX_STEPS) simAcc = 0;                       // may cham: bo phan tre, khong don buoc
+  if (performance.now() - (H._lastMoveTime || 0) > 120) {
+    H._isMoving = false;
+  }
 }
 function drawLerp(dt) {
   const a = simAcc / STEP, list = movers().filter(o => o._px !== undefined && Math.hypot(o.x - o._px, o.y - o._py) < LERP_MAX);

@@ -234,7 +234,12 @@ function tick(dt) {
   if (!(looting && R.pickTarget)) {                        // dang chu dong di nhat thi khong danh
     if (manual()) { /* dung yen hoac di theo tay, khong tu chay toi quai */ }
     else if (R.moveTo && R.moveTo.hp > 0) {
+      const dx = R.moveTo.x - H.x, dy = R.moveTo.y - H.y;
       obsSteer(H, R.moveTo.x, R.moveTo.y, 150 * P.speed * dt);
+      H._isMoving = true;
+      H._lastMoveTime = performance.now();
+      if (H.act !== 'at' && typeof dirOf === 'function') H.dir = dirOf(dx, dy);
+      if (Math.abs(dx) > 0.02) H.face = dx >= 0 ? 1 : -1;
     }
     R.atkT -= dt; if (R.atkT <= 0) R.atkT = heroAttack();
   }

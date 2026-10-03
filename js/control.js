@@ -57,6 +57,10 @@ function inputVec() {
 }
 function moveManual(dt) {
   const [vx, vy] = inputVec(); if (!vx && !vy) return false;
+  H._isMoving = true;
+  H._lastMoveTime = performance.now();
+  if (H.act !== 'at' && typeof dirOf === 'function') H.dir = dirOf(vx, vy);
+  if (Math.abs(vx) > 0.02) H.face = vx >= 0 ? 1 : -1;
   const sp = 150 * (R.P ? R.P.speed : 1);
   const [nx, ny] = clampWorld(H.x + vx * sp * dt, H.y + vy * sp * dt);
   if (!obsMove(H, nx, ny) && INPUT.target) INPUT.target = null;      // cham vat can: bo diem cham

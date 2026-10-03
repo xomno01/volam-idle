@@ -270,7 +270,18 @@ function renderInv() {
 function renderMore() {
   const adminChu = (typeof adminDaDung === 'function' && adminDaDung()) ? 'Hôm nay đã dùng — xem' : 'Mở bảng thử nghiệm';
   const speedNow = (typeof gameSpeed === 'function') ? gameSpeed() : 1;
+  const netUser = (window.NET && NET.user) ? NET.user.username : 'Chưa đăng nhập';
+  const netHost = (window.NET && typeof NET.getServerHost === 'function') ? NET.getServerHost() : location.host;
   $('#t-more').innerHTML = `
+    <h3>Tài khoản & Máy chủ Online</h3><div class="card lootf">
+      <div class="row">Tài khoản <b style="color:#38bdf8">${esc(netUser)}</b></div>
+      <div class="row">Máy chủ <code style="color:#94a3b8; font-size:11px;">${esc(netHost)}</code></div>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn" id="bMoreAccount">👤 Quản lý tài khoản</button>
+        <button class="btn" id="bMoreServer">🌐 Đổi máy chủ</button>
+        <button class="btn red" id="bMoreLogout">🚪 Đăng xuất</button>
+      </div>
+    </div>
     <h3>Nhân vật</h3><div class="card lootf">
       <div class="row">Tên <input id="cName" maxlength="16" value="${esc(S.name || '')}" style="flex:1"></div>
       <div class="row">Giới tính <select id="cSex"><option value="0" ${S.sex ? '' : 'selected'}>Nam</option><option value="1" ${S.sex ? 'selected' : ''}>Nữ</option></select></div>
@@ -305,6 +316,9 @@ function renderMore() {
       <label><input type="checkbox" id="cLowFx" ${giamHieuUng() ? 'checked' : ''}> Giảm hiệu ứng (mượt hơn trên máy yếu / đông quái; tự bật nếu hệ điều hành yêu cầu giảm chuyển động)</label></div>
     <h3>Nguồn dữ liệu</h3><div class="card small dim">Kỹ năng, quái, trang bị, thuộc tính và tỉ lệ rơi đồ trích từ dữ liệu Võ Lâm Truyền Kỳ 1 (bản fan chơi offline, phi thương mại).</div>
     <div class="btnrow"><button class="btn" id="bSwitch">Đổi nhân vật / slot</button><button class="btn red" id="bReset">Xóa nhân vật</button></div>`;
+  const bMoreAcc = $('#bMoreAccount'); if (bMoreAcc) bMoreAcc.onclick = () => { if (window.NET) NET.showAccountModal(); };
+  const bMoreSrv = $('#bMoreServer'); if (bMoreSrv) bMoreSrv.onclick = () => { if (window.NET) NET.showServerModal(); };
+  const bMoreLog = $('#bMoreLogout'); if (bMoreLog) bMoreLog.onclick = () => { if (window.NET) NET.logout(); };
   $('#bName').onclick = () => {
     const n = ($('#cName').value || '').trim().slice(0, 16) || 'Tân thủ';
     const sx = +$('#cSex').value ? 1 : 0, doi = sx !== S.sex;
