@@ -12,7 +12,7 @@ const NET = {
   chatLog: [],
   onlineCount: 1,
 
-  init() {
+  async init() {
     this.token = localStorage.getItem('vlo_token');
     const savedUser = localStorage.getItem('vlo_user');
     if (savedUser) {
@@ -22,8 +22,35 @@ const NET = {
     if (!window.R) window.R = {};
     if (!window.R.remotePlayers) window.R.remotePlayers = new Map();
 
-    this.connect();
     this.initUI();
+
+    // Kiểm tra token có hợp lệ trên máy chủ không
+    if (this.token) {
+      console.log('[NET] Đang kiểm tra phiên đăng nhập của:', this.user ? this.user.username : 'khách');
+      const cloud = await this.loadCloud(0);
+      if (cloud && cloud.ok) {
+        console.log('[NET] Phiên đăng nhập hợp lệ!');
+        if (cloud.state && cloud.state.fac) {
+          window.S = cloud.state;
+          if (typeof save === 'function') save();
+          if (typeof recalc === 'function') recalc();
+          if (typeof refresh === 'function') refresh();
+        }
+        this.hideAuthGate();
+        this.connect();
+      } else {
+        console.warn('[NET] Token hết hạn hoặc máy chủ đã reset, yêu cầu đăng nhập lại.');
+        localStorage.removeItem('vlo_token');
+        localStorage.removeItem('vlo_user');
+        this.token = null;
+        this.user = null;
+        this.updateAuthButton();
+        this.showAuthGate();
+      }
+    } else {
+      console.log('[NET] Chưa đăng nhập, hiển thị màn hình Auth Gate bắt buộc.');
+      this.showAuthGate();
+    }
   },
 
   getServerHost() {
@@ -40,12 +67,19 @@ const NET = {
   },
 
   connect() {
+    if (!this.token) {
+      console.warn('[NET] Chưa đăng nhập, hoãn kết nối WebSocket.');
+      return;
+    }
     const host = this.getServerHost();
     const protocol = (location.protocol === 'https:' || host.includes('trycloudflare.com')) ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${host}`;
     console.log('[NET] Đang kết nối tới máy chủ Online:', wsUrl);
 
     try {
+      if (this.ws) {
+        try { this.ws.close(); } catch (e) {}
+      }
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
@@ -53,27 +87,16 @@ const NET = {
         this.connected = true;
         this.updateOnlineBadge();
 
-        // Gửi thông tin định danh
-        if (this.token) {
-          this.send({
-            type: 'AUTH',
-            token: this.token,
-            name: S.name || 'Hiệp Khách',
-            fac: S.fac || 0,
-            lvl: S.lvl || 1,
-            hp: R.P ? R.P.life : 100,
-            maxHp: R.P ? R.P.life : 100
-          });
-        } else {
-          this.send({
-            type: 'SET_PROFILE',
-            name: S.name || 'Hiệp Khách',
-            fac: S.fac || 0,
-            lvl: S.lvl || 1,
-            hp: R.P ? R.P.life : 100,
-            maxHp: R.P ? R.P.life : 100
-          });
-        }
+        // Gửi thông tin định danh người chơi
+        this.send({
+          type: 'AUTH',
+          token: this.token,
+          name: (typeof S !== 'undefined' && S.name) ? S.name : (this.user ? this.user.username : 'Hiệp Khách'),
+          fac: (typeof S !== 'undefined' && S.fac) ? S.fac : 0,
+          lvl: (typeof S !== 'undefined' && S.lvl) ? S.lvl : 1,
+          hp: (window.R && R.P) ? R.P.life : 100,
+          maxHp: (window.R && R.P) ? R.P.life : 100
+        });
 
         // Vào map hiện tại
         const zoneId = (typeof zoneOf === 'function' && typeof S !== 'undefined') ? zoneOf(S.stage).id : 2;
@@ -93,7 +116,9 @@ const NET = {
         this.connected = false;
         console.warn('[NET] Mất kết nối tới máy chủ, tự kết nối lại sau 3s...');
         this.updateOnlineBadge();
-        setTimeout(() => this.connect(), 3000);
+        if (this.token) {
+          setTimeout(() => this.connect(), 3000);
+        }
       };
 
       this.ws.onerror = (err) => {
@@ -244,6 +269,51 @@ const NET = {
         }
         break;
       }
+
+      case 'SYSTEM_NOTICE': {
+        console.log('[NET] Nhận thông báo toàn server:', msg.text);
+        this.showSystemNotice(msg.text, msg.color || '#ffdd4a');
+        this.appendChat({
+          channel: 'sys',
+          sender: { name: '📢 QUẢN TRỊ VIÊN' },
+          text: msg.text,
+          time: new Date(msg.time || Date.now()).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        });
+        break;
+      }
+
+      case 'ADMIN_UPDATE_STATE': {
+        console.log('[NET] Cập nhật dữ liệu từ Admin:', msg);
+        if (msg.state) {
+          window.S = msg.state;
+          if (typeof save === 'function') save();
+          if (typeof recalc === 'function') recalc();
+          if (typeof refresh === 'function') refresh();
+        }
+        if (msg.notice) {
+          if (typeof toast === 'function') toast(`🎁 ${msg.notice}`);
+          if (typeof uiSfx === 'function') {
+            try { uiSfx('levelup'); } catch (e) {}
+          }
+          this.appendChat({
+            channel: 'sys',
+            sender: { name: 'HỆ THỐNG' },
+            text: msg.notice,
+            time: ''
+          });
+        }
+        break;
+      }
+
+      case 'KICKED': {
+        console.warn('[NET] Bị ngắt kết nối bởi Quản trị viên:', msg.reason);
+        this.showKickedNotice(msg.reason || 'Bạn đã bị ngắt kết nối bởi Quản trị viên');
+        if (this.ws) {
+          this.ws.onclose = null; // Không tự reconnect
+          this.ws.close();
+        }
+        break;
+      }
     }
   },
 
@@ -387,6 +457,16 @@ const NET = {
     return res;
   },
 
+  _lastCloudSave: 0,
+  saveCloudThrottled() {
+    const now = Date.now();
+    if (now - this._lastCloudSave < 15000) return; // Giới hạn tối thiểu 15s một lần
+    this._lastCloudSave = now;
+    if (this.token && typeof S !== 'undefined' && S.fac) {
+      this.saveCloud(0);
+    }
+  },
+
   async saveCloud(slot = 0) {
     if (!this.token) return { ok: false, error: 'Chưa đăng nhập' };
     return await this.apiPost('/api/save', { token: this.token, slot, state: S });
@@ -464,6 +544,64 @@ const NET = {
         border-radius: 4px; padding: 2px 10px; font-size: 12px; cursor: pointer;
       }
       #chatSendBtn:hover { background: #3d785a; }
+
+      /* ================= THÔNG BÁO QUẢN TRỊ VIÊN TOÀN SERVER (BANNER) ================= */
+      #serverNoticeBanner {
+        position: fixed; top: 16px; left: 50%; transform: translate(-50%, -24px) scale(0.92);
+        z-index: 99999;
+        background: rgba(13, 22, 17, 0.96); border: 2px solid #ffdd4a; border-radius: 12px;
+        box-shadow: 0 0 35px rgba(251, 191, 36, 0.55), inset 0 0 15px rgba(0, 0, 0, 0.7);
+        padding: 12px 24px; display: flex; align-items: center; gap: 14px;
+        max-width: 92vw; width: 560px; backdrop-filter: blur(12px);
+        opacity: 0; pointer-events: none; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      #serverNoticeBanner.visible {
+        opacity: 1; pointer-events: auto; transform: translate(-50%, 0) scale(1);
+      }
+      #serverNoticeBanner .notice-icon { font-size: 28px; animation: noticePulse 1.2s infinite alternate ease-in-out; }
+      @keyframes noticePulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+      #serverNoticeBanner .notice-body { flex: 1; text-align: left; }
+      #serverNoticeBanner .notice-tag { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+      #serverNoticeBanner .notice-text { font-size: 15px; font-weight: 700; color: #ffffff; line-height: 1.4; word-break: break-word; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+
+      /* ================= AUTH GATE OVERLAY (BẮT BUỘC ĐĂNG NHẬP / ĐĂNG KÝ) ================= */
+      #authGateOverlay {
+        position: fixed; inset: 0; background: radial-gradient(circle at center, #14221b 0%, #060a08 100%);
+        z-index: 100000; display: none; justify-content: center; align-items: center; padding: 16px;
+        backdrop-filter: blur(10px);
+      }
+      .auth-box {
+        background: #0f1914; border: 1px solid #1f3d2b;
+        box-shadow: 0 0 40px rgba(16, 185, 129, 0.2), 0 25px 50px rgba(0,0,0,0.85);
+        border-radius: 16px; max-width: 410px; width: 100%; padding: 28px 24px;
+        color: #e2e8f0; text-align: center; animation: authFadeIn 0.3s ease;
+      }
+      @keyframes authFadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+      .auth-tabs { display: flex; border-bottom: 2px solid #1a2e22; margin-bottom: 18px; }
+      .auth-tab-btn {
+        flex: 1; padding: 10px; font-size: 13px; font-weight: 700; background: transparent;
+        border: none; color: #94a3b8; cursor: pointer; transition: all 0.2s; border-bottom: 2px solid transparent;
+      }
+      .auth-tab-btn.active { color: #fbbf24; border-bottom-color: #fbbf24; }
+      .auth-field { display: flex; flex-direction: column; gap: 5px; text-align: left; margin-bottom: 12px; }
+      .auth-field label { font-size: 12px; font-weight: 600; color: #cbd5e1; }
+      .auth-field input {
+        background: #070c09; border: 1px solid #1f3d2b; border-radius: 6px;
+        padding: 9px 12px; font-size: 13px; color: #fff; outline: none; transition: border-color 0.2s;
+      }
+      .auth-field input:focus { border-color: #10b981; }
+
+      /* ================= KICKED NOTIFICATION OVERLAY ================= */
+      #kickedNoticeOverlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+        z-index: 100001; display: none; justify-content: center; align-items: center; padding: 20px;
+        backdrop-filter: blur(10px);
+      }
+      .kicked-box {
+        background: #181111; border: 1px solid #7f1d1d; border-radius: 16px;
+        max-width: 420px; width: 100%; padding: 32px 24px; text-align: center; color: #f87171;
+        box-shadow: 0 0 40px rgba(239, 68, 68, 0.25);
+      }
     `;
     const st = document.createElement('style');
     st.textContent = css;
@@ -557,32 +695,32 @@ const NET = {
   showAuthModal() {
     if (this.user) {
       modal(`
-        <h3>Tài Khoản Võ Lâm Online</h3>
+        <h3>⚔️ Tài Khoản Võ Lâm Online</h3>
         <div class="card">
-          <p>Đang đăng nhập: <b style="color:#7fffc0">${esc(this.user.username)}</b></p>
-          <p class="dim small">Tiến trình chơi và đồ đạc của bạn được bảo vệ trên đám mây.</p>
-          <div class="btnrow">
-            <button class="btn" id="bSaveCloud">☁ Lưu lên Cloud</button>
-            <button class="btn" id="bLoadCloud">☁ Tải từ Cloud</button>
+          <p>Hiệp khách: <b style="color:#7fffc0; font-size:15px;">${esc(this.user.username)}</b></p>
+          <p class="dim small" style="margin-top:4px;">Dữ liệu nhân vật, cấp độ và đồ đạc được đồng bộ tự động lên máy chủ VPS.</p>
+          <div class="btnrow" style="margin-top:14px;">
+            <button class="btn" id="bSaveCloud">☁️ Lưu Lên Đám Mây</button>
+            <button class="btn" id="bLoadCloud">☁️ Tải Từ Đám Mây</button>
           </div>
-          <div class="btnrow" style="margin-top:10px">
-            <button class="btn red" id="bLogout">Đăng xuất</button>
+          <div class="btnrow" style="margin-top:10px;">
+            <button class="btn red" id="bLogout" style="width:100%">🚪 Đăng Xuất Tài Khoản</button>
           </div>
         </div>
       `, () => {
         $('#bSaveCloud').onclick = async () => {
           const res = await this.saveCloud(0);
-          toast(res.ok ? 'Đã lưu lên Cloud an toàn!' : 'Lỗi: ' + res.error);
+          toast(res.ok ? '✅ Đã lưu nhân vật lên máy chủ an toàn!' : '⚠️ Lỗi: ' + res.error);
         };
         $('#bLoadCloud').onclick = async () => {
           const res = await this.loadCloud(0);
           if (res.ok && res.state) {
             window.S = res.state;
             save();
-            toast('Đã nạp nhân vật từ Cloud thành công!');
-            setTimeout(() => location.reload(), 800);
+            toast('✅ Đã nạp nhân vật từ đám mây thành công!');
+            setTimeout(() => location.reload(), 600);
           } else {
-            toast('Chưa có bản lưu nào trên Cloud');
+            toast('⚠️ Chưa có bản lưu nào trên máy chủ');
           }
         };
         $('#bLogout').onclick = () => {
@@ -590,48 +728,232 @@ const NET = {
           localStorage.removeItem('vlo_user');
           this.token = null;
           this.user = null;
+          if (this.ws) {
+            this.ws.onclose = null;
+            this.ws.close();
+          }
           closeModal(true);
-          toast('Đã đăng xuất');
+          toast('Đã đăng xuất tài khoản.');
           this.updateAuthButton();
+          this.showAuthGate();
         };
       });
       return;
     }
 
-    // Modal Đăng nhập / Đăng ký
-    modal(`
-      <h3>Đăng Nhập / Đăng Ký Online</h3>
-      <div class="card">
-        <p class="dim small">Đăng ký tài khoản để lưu trữ nhân vật lên máy chủ, chat thế giới và tham gia bãi quái chung.</p>
-        <div class="row">Tài khoản: <input id="uName" maxlength="20" style="flex:1"></div>
-        <div class="row">Mật khẩu: <input id="uPass" type="password" style="flex:1"></div>
-        <div class="btnrow" style="margin-top:12px">
-          <button class="btn" id="bDoLogin">Đăng nhập</button>
-          <button class="btn" id="bDoReg">Đăng ký mới</button>
-        </div>
+    this.showAuthGate();
+  },
+
+  /* ================= THÔNG BÁO QUẢN TRỊ TOÀN SERVER (BANNER) ================= */
+  _noticeTimer: null,
+  showSystemNotice(text, color = '#ffdd4a') {
+    let el = document.getElementById('serverNoticeBanner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'serverNoticeBanner';
+      document.body.appendChild(el);
+    }
+
+    el.style.borderColor = color;
+    el.style.boxShadow = `0 0 35px ${color}88, inset 0 0 15px rgba(0,0,0,0.7)`;
+    el.innerHTML = `
+      <div class="notice-icon">📢</div>
+      <div class="notice-body">
+        <div class="notice-tag" style="color: ${color}">THÔNG BÁO TỪ QUẢN TRỊ VIÊN</div>
+        <div class="notice-text">${esc(text)}</div>
       </div>
-    `, () => {
-      $('#bDoLogin').onclick = async () => {
-        const u = $('#uName').value, p = $('#uPass').value;
-        const res = await this.login(u, p);
-        if (res.ok) {
-          toast('Đăng nhập thành công! Chào ' + res.user.username);
-          closeModal(true);
-        } else {
-          toast('Lỗi: ' + res.error);
-        }
+    `;
+
+    el.classList.remove('hidden');
+    el.classList.add('visible');
+
+    if (typeof uiSfx === 'function') {
+      try { uiSfx('levelup'); } catch (e) {}
+    }
+
+    clearTimeout(this._noticeTimer);
+    this._noticeTimer = setTimeout(() => {
+      el.classList.remove('visible');
+    }, 7500);
+  },
+
+  /* ================= HỘP THOẠI KICK / BAN ================= */
+  showKickedNotice(reason) {
+    let el = document.getElementById('kickedNoticeOverlay');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'kickedNoticeOverlay';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `
+      <div class="kicked-box">
+        <div style="font-size: 48px; margin-bottom: 12px">⚠️</div>
+        <h2 style="color: #ef4444; margin-bottom: 10px">MẤT KẾT NỐI MÁY CHỦ</h2>
+        <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 20px; line-height: 1.5;">${esc(reason)}</p>
+        <button class="btn" style="background: #3b82f6; padding: 10px 24px; font-size: 14px; border-radius: 8px;" onclick="location.reload()">
+          Tải Lại & Đăng Nhập
+        </button>
+      </div>
+    `;
+    el.style.display = 'flex';
+  },
+
+  /* ================= AUTH GATE OVERLAY (BẮT BUỘC ĐĂNG NHẬP / ĐĂNG KÝ) ================= */
+  currentAuthTab: 'login',
+
+  showAuthGate() {
+    let overlay = document.getElementById('authGateOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'authGateOverlay';
+      overlay.innerHTML = `
+        <div class="auth-box">
+          <div class="auth-header" style="margin-bottom: 16px;">
+            <div style="font-size: 38px; margin-bottom: 6px;">⚔️</div>
+            <h2 style="color: #fbbf24; font-size: 20px; font-weight: 800; letter-spacing: 1px;">VÕ LÂM TRUYỀN KỲ ONLINE</h2>
+            <p style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Đăng nhập để vào thế giới giang hồ trực tuyến</p>
+          </div>
+
+          <div class="auth-tabs">
+            <button class="auth-tab-btn active" id="tabBtnLogin" onclick="NET.switchAuthTab('login')">ĐĂNG NHẬP</button>
+            <button class="auth-tab-btn" id="tabBtnReg" onclick="NET.switchAuthTab('reg')">ĐĂNG KÝ MỚI</button>
+          </div>
+
+          <div id="authFormArea">
+            <div class="auth-field">
+              <label>Tài Khoản:</label>
+              <input type="text" id="authUsername" placeholder="Tên tài khoản (3 - 20 ký tự)" maxlength="20" autofocus autocomplete="username">
+            </div>
+
+            <div class="auth-field">
+              <label>Mật Khẩu:</label>
+              <input type="password" id="authPassword" placeholder="Mật khẩu (từ 4 ký tự)" maxlength="32" autocomplete="current-password">
+            </div>
+
+            <div class="auth-field" id="authConfirmField" style="display: none;">
+              <label>Xác Nhận Mật Khẩu:</label>
+              <input type="password" id="authPasswordConfirm" placeholder="Nhập lại mật khẩu" maxlength="32" autocomplete="new-password">
+            </div>
+
+            <div id="authErrorMsg" style="color: #f87171; font-size: 12px; margin-bottom: 12px; min-height: 18px; text-align: left; display: none;"></div>
+
+            <button class="btn" id="authSubmitBtn" onclick="NET.handleAuthSubmit()" style="width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 700; background: #059669; border-radius: 8px;">
+              Vào Game
+            </button>
+          </div>
+
+          <div class="auth-footer" style="margin-top: 18px; border-top: 1px solid #1a2e22; padding-top: 12px; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+            <span>Máy chủ: VPS Windows (Online 24/7)</span>
+            <a href="javascript:void(0)" onclick="NET.promptServerHost()" style="color: #38bdf8; text-decoration: none;">⚙️ Đổi Máy Chủ</a>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const handleKey = (e) => {
+        if (e.key === 'Enter') NET.handleAuthSubmit();
       };
-      $('#bDoReg').onclick = async () => {
-        const u = $('#uName').value, p = $('#uPass').value;
-        const res = await this.register(u, p);
-        if (res.ok) {
-          toast('Đăng ký tài khoản thành công!');
-          closeModal(true);
-        } else {
-          toast('Lỗi: ' + res.error);
-        }
-      };
-    });
+      document.getElementById('authUsername').addEventListener('keydown', handleKey);
+      document.getElementById('authPassword').addEventListener('keydown', handleKey);
+      document.getElementById('authPasswordConfirm').addEventListener('keydown', handleKey);
+    }
+
+    overlay.style.display = 'flex';
+  },
+
+  hideAuthGate() {
+    const overlay = document.getElementById('authGateOverlay');
+    if (overlay) overlay.style.display = 'none';
+  },
+
+  switchAuthTab(tab) {
+    this.currentAuthTab = tab;
+    const tabLogin = document.getElementById('tabBtnLogin');
+    const tabReg = document.getElementById('tabBtnReg');
+    const confirmField = document.getElementById('authConfirmField');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    const errorEl = document.getElementById('authErrorMsg');
+    if (errorEl) errorEl.style.display = 'none';
+
+    if (tab === 'login') {
+      tabLogin.classList.add('active');
+      tabReg.classList.remove('active');
+      confirmField.style.display = 'none';
+      submitBtn.textContent = 'Vào Game';
+      submitBtn.style.background = '#059669';
+    } else {
+      tabReg.classList.add('active');
+      tabLogin.classList.remove('active');
+      confirmField.style.display = 'block';
+      submitBtn.textContent = 'Tạo Tài Khoản & Bắt Đầu';
+      submitBtn.style.background = '#b45309';
+    }
+  },
+
+  async handleAuthSubmit() {
+    const u = (document.getElementById('authUsername').value || '').trim();
+    const p = (document.getElementById('authPassword').value || '').trim();
+    const errorEl = document.getElementById('authErrorMsg');
+
+    const showError = (msg) => {
+      errorEl.textContent = '⚠️ ' + msg;
+      errorEl.style.display = 'block';
+    };
+
+    if (!u || u.length < 3) return showError('Tên tài khoản phải từ 3 đến 20 ký tự');
+    if (!p || p.length < 4) return showError('Mật khẩu phải từ 4 ký tự trở lên');
+
+    if (this.currentAuthTab === 'reg') {
+      const p2 = (document.getElementById('authPasswordConfirm').value || '').trim();
+      if (p !== p2) return showError('Mật khẩu xác nhận không trùng khớp!');
+
+      const res = await this.register(u, p);
+      if (!res.ok) return showError(res.error || 'Đăng ký thất bại');
+
+      this.hideAuthGate();
+      this.afterAuthSuccess(true);
+    } else {
+      const res = await this.login(u, p);
+      if (!res.ok) return showError(res.error || 'Đăng nhập thất bại');
+
+      this.hideAuthGate();
+      this.afterAuthSuccess(false);
+    }
+  },
+
+  async afterAuthSuccess(isNewAccount) {
+    if (typeof toast === 'function') toast(`⚔️ Chào mừng đại hiệp [${this.user.username}] gia nhập Võ Lâm!`);
+    
+    // Nạp dữ liệu đám mây của nhân vật
+    const cloud = await this.loadCloud(0);
+    if (cloud && cloud.ok && cloud.state && cloud.state.fac) {
+      window.S = cloud.state;
+      if (typeof save === 'function') save();
+      if (typeof recalc === 'function') recalc();
+      if (typeof refresh === 'function') refresh();
+    } else {
+      // Tài khoản mới chưa có phái
+      if (typeof S !== 'undefined' && !S.fac) {
+        if (typeof pickFaction === 'function') pickFaction();
+      }
+    }
+
+    // Kết nối WebSocket & bắt đầu thế giới online
+    this.connect();
+    this.updateAuthButton();
+  },
+
+  promptServerHost() {
+    const cur = this.getServerHost();
+    const val = prompt('Nhập địa chỉ máy chủ WebSocket / API (mặc định: để trống nếu cùng domain):', cur === location.host ? '' : cur);
+    if (val !== null) {
+      if (val.trim()) {
+        localStorage.setItem('vlo_server_host', val.trim());
+      } else {
+        localStorage.removeItem('vlo_server_host');
+      }
+      location.reload();
+    }
   }
 };
 

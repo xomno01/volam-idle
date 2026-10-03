@@ -45,6 +45,9 @@ function save() {
     if (prev) { try { if (unpack(prev).ok) localStorage.setItem(k + '_bak', prev); } catch (e) { /* bo qua ban hong */ } }   // ban sao luu = ban hop le truoc do
     localStorage.setItem(k, pack(S)); localStorage.setItem(SLOT_PTR, String(SLOT));
     saveFailN = 0;
+    if (window.NET && typeof NET.saveCloudThrottled === 'function') {
+      NET.saveCloudThrottled();
+    }
   } catch (e) {
     saveFailN++;
     if (!saveWarned) {                    // canh bao MOT lan moi phien, khong spam khi bo nho day keo dai

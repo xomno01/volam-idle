@@ -150,6 +150,15 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, boss });
     }
 
+    if (req.method === "POST" && pathname === "/api/admin/server-wipe") {
+      const { confirmKey } = await readBody(req);
+      if (confirmKey !== "WIPE-CONFIRM") {
+        return sendJson(res, 400, { ok: false, error: "Vui lòng nhập chính xác từ khóa xác nhận: WIPE-CONFIRM" });
+      }
+      const result = admin.wipeServerData(gameSocket);
+      return sendJson(res, 200, result);
+    }
+
     return sendJson(res, 404, { ok: false, error: "Admin API not found" });
   }
 

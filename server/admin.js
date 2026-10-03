@@ -221,6 +221,29 @@ function unbanPlayer(userId) {
   return { ok: true };
 }
 
+function wipeServerData(gameSocket) {
+  // 1. Kick tất cả người chơi đang online kèm thông báo
+  if (gameSocket) {
+    for (const ws of gameSocket.clients.keys()) {
+      gameSocket.send(ws, {
+        type: "KICKED",
+        reason: "Máy chủ đang được làm mới (Reset Server). Vui lòng đăng ký tài khoản mới để bắt đầu lại!"
+      });
+      try { ws.close(); } catch (e) {}
+    }
+    gameSocket.clients.clear();
+  }
+
+  // 2. Ghi đè rỗng toàn bộ dữ liệu
+  saveData("users", {});
+  saveData("saves", {});
+  saveData("bans", {});
+  saveData("leaderboard", []);
+  saveData("sessions", {});
+
+  return { ok: true, message: "Đã xóa toàn bộ dữ liệu người chơi và làm mới máy chủ hoàn toàn!" };
+}
+
 module.exports = {
   adminLogin,
   verifyAdminToken,
@@ -231,5 +254,6 @@ module.exports = {
   giveServerWideGift,
   kickPlayer,
   banPlayer,
-  unbanPlayer
+  unbanPlayer,
+  wipeServerData
 };

@@ -1,8 +1,17 @@
 const crypto = require("crypto");
 const { loadData, saveData } = require("./db");
 
-// In-memory sessions token -> userId
-const sessions = new Map();
+// Persistent sessions token -> { userId, createdAt }
+let sessionsCache = null;
+function getSessions() {
+  if (!sessionsCache) sessionsCache = loadData("sessions", {});
+  return sessionsCache;
+}
+function saveSession(token, userId) {
+  const sess = getSessions();
+  sess[token] = { userId, createdAt: Date.now() };
+  saveData("sessions", sess);
+}
 
 function hashPassword(password, salt) {
   if (!salt) salt = crypto.randomBytes(16).toString("hex");
@@ -46,7 +55,7 @@ function register(username, password) {
   saveData("users", users);
 
   const token = generateToken();
-  sessions.set(token, user.id);
+  saveSession(token, user.id);
 
   return { ok: true, token, user: { id: user.id, username: user.username } };
 }
@@ -63,19 +72,29 @@ function login(username, password) {
     return { ok: false, error: "Tài khoản hoặc mật khẩu không chính xác" };
   }
 
+  const bans = loadData("bans", {});
+  if (bans[user.id]) {
+    return { ok: false, error: "Tài khoản của bạn đã bị khóa: " + (bans[user.id].reason || "Vi phạm quy định") };
+  }
+
   const token = generateToken();
-  sessions.set(token, user.id);
+  saveSession(token, user.id);
 
   return { ok: true, token, user: { id: user.id, username: user.username } };
 }
 
 function verifyToken(token) {
   if (!token) return null;
-  const userId = sessions.get(token);
-  if (!userId) return null;
+  const sess = getSessions();
+  const entry = sess[token];
+  if (!entry || !entry.userId) return null;
+  
+  const bans = loadData("bans", {});
+  if (bans[entry.userId]) return null;
+
   const users = loadData("users", {});
   for (const u of Object.values(users)) {
-    if (u.id === userId) return { id: u.id, username: u.username };
+    if (u.id === entry.userId) return { id: u.id, username: u.username };
   }
   return null;
 }

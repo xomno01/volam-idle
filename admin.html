@@ -177,6 +177,7 @@
       <button class="nav-item" onclick="switchTab('tab-dispenser')">🎁 Kho Đồ & Tặng Quà</button>
       <button class="nav-item" onclick="switchTab('tab-world')">🗺️ Thế Giới & Gọi Boss</button>
       <button class="nav-item" onclick="switchTab('tab-broadcast')">📢 Thông Báo Toàn Server</button>
+      <button class="nav-item" onclick="switchTab('tab-system')">⚙️ Cài Đặt & Reset Server</button>
     </nav>
 
     <!-- Content Area -->
@@ -373,6 +374,41 @@
         </div>
       </section>
 
+      <!-- TAB 6: CÀI ĐẶT & RESET MÁY CHỦ -->
+      <section id="tab-system" class="tab-pane">
+        <div class="card">
+          <h3>⚙️ Cài Đặt Hệ Thống & Bảo Trì</h3>
+          <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
+            Quản trị trạng thái vận hành của máy chủ VPS và các công cụ dọn dẹp hệ thống.
+          </p>
+
+          <div class="form-group">
+            <label>Thông Tin Phiên Quản Trị:</label>
+            <div style="background:#0a110e; border:1px solid var(--card-border); border-radius:6px; padding:12px; font-size:13px; color:#cbd5e1; line-height:1.6">
+              <div>👑 Mật mã hiện tại: <b>Vinhloc123</b></div>
+              <div>⚡ Cổng dịch vụ: <b>3000</b> (HTTP / WebSocket)</div>
+              <div>🚀 Engine: <b>20Hz Tick Rate (50ms)</b></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border-color:#7f1d1d">
+          <h3 style="color:#ef4444">⚠️ Vùng Nguy Hiểm: Khởi Tạo Lại Máy Chủ (Wipe / Reset Server)</h3>
+          <p style="font-size:13px; color:#f87171; margin-bottom:16px; line-height:1.5">
+            Thao tác này sẽ ngắt kết nối toàn bộ người chơi đang online và <b>XÓA SẠCH 100%</b> danh sách tài khoản, nhân vật, hành trang và bảng xếp hạng để chuẩn bị cho mùa giải / đợt khai mở mới. Mật mã Admin <b>Vinhloc123</b> sẽ được giữ nguyên an toàn.
+          </p>
+
+          <div class="form-group">
+            <label style="color:#f87171">Nhập từ khóa xác nhận để thực thi (chữ hoa):</label>
+            <input type="text" id="wipeConfirmInput" placeholder="Nhập: WIPE-CONFIRM" style="border-color:#7f1d1d; max-width:300px;">
+          </div>
+
+          <button class="btn btn-red" onclick="submitWipeServer()" style="padding:10px 22px; font-size:14px; font-weight:700">
+            🔥 Xóa Sạch Dữ Liệu & Reset Server
+          </button>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -475,7 +511,7 @@
 
       const navBtns = document.querySelectorAll(".nav-item");
       const map = {
-        'tab-overview': 0, 'tab-players': 1, 'tab-dispenser': 2, 'tab-world': 3, 'tab-broadcast': 4
+        'tab-overview': 0, 'tab-players': 1, 'tab-dispenser': 2, 'tab-world': 3, 'tab-broadcast': 4, 'tab-system': 5
       };
       if (navBtns[map[tabId]]) navBtns[map[tabId]].classList.add("active");
 
@@ -695,6 +731,31 @@
       if (res.ok) {
         alert("Đã phát thông báo toàn server thành công!");
         document.getElementById("broadcastTextInput").value = "";
+      } else {
+        alert("Lỗi: " + res.error);
+      }
+    }
+
+    async function submitWipeServer() {
+      const key = (document.getElementById("wipeConfirmInput").value || "").trim();
+      if (key !== "WIPE-CONFIRM") {
+        return alert("Vui lòng nhập chính xác từ khóa xác nhận: WIPE-CONFIRM");
+      }
+      if (!confirm("⚠️ CẢNH BÁO TỐI CAO:\nBạn có thực sự chắc chắn muốn XÓA SẠCH toàn bộ dữ liệu người chơi, nhân vật và bảng xếp hạng để reset server không?\n\n(Mật khẩu Admin Vinhloc123 sẽ được giữ nguyên)")) {
+        return;
+      }
+
+      const res = await adminFetch("/api/admin/server-wipe", {
+        method: "POST",
+        body: JSON.stringify({ confirmKey: key })
+      });
+
+      if (res.ok) {
+        alert("✅ " + res.message);
+        document.getElementById("wipeConfirmInput").value = "";
+        loadOverview();
+        loadPlayers();
+        switchTab("tab-overview");
       } else {
         alert("Lỗi: " + res.error);
       }
