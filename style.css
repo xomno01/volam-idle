@@ -1,0 +1,264 @@
+:root{--font:'Noto Sans',system-ui,'Segoe UI',Roboto,Arial,sans-serif;--font-display:'Grenze','Noto Serif',Georgia,serif;
+  --bg:#0e1412; --panel:#151d1a; --panel2:#1c2723; --line:#2c3b35; --line2:#4a5f55;
+  --gold:#e6c67a; --gold2:#a8864a; --text:#e9e2d0; --dim:#98a397; --red:#c8321f; --hp:#b8322a; --mp:#2f64b8; --xp:#c9a23a;
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#050807;color:var(--text);font:14px/1.4 var(--font);overflow:hidden;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button[disabled]{opacity:.4;cursor:default}
+.hidden{display:none!important}
+.dim{color:var(--dim)} .small{font-size:12px}
+#app{position:relative;height:100dvh;width:min(100vw,calc(100dvh*9/16));margin:0 auto;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px #000}
+
+#top{display:flex;align-items:center;gap:8px;padding:calc(6px + var(--safe-t)) 10px 6px;background:linear-gradient(#1a2521,#0f1613);border-bottom:1px solid var(--gold2);z-index:3}
+.lvbox{position:relative;width:46px;height:46px;border-radius:8px;border:2px solid var(--gold2);background:var(--pl, none) center 12%/auto 135% no-repeat,radial-gradient(#2c3a2f,#0c120f);image-rendering:pixelated;flex:none;overflow:visible}
+.lvbox #lv{position:absolute;right:-6px;bottom:-6px;min-width:22px;height:22px;padding:0 4px;border-radius:11px;border:2px solid var(--gold2);background:#0c120f;display:grid;place-items:center;font-weight:700;color:var(--gold);font-size:12px}
+.topmid{flex:1;min-width:0}
+.topmid .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.topmid b{color:var(--gold);font-family:var(--font)}
+#stageLbl{color:var(--dim)}
+.gold{display:flex;align-items:center;gap:5px;font-weight:600;color:var(--gold);font-size:13px}
+.coin{width:14px;height:10px;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 40% 35%,#fbe9ad,#a7792b);box-shadow:0 0 0 1px #5a3d14}
+.bar{position:relative;height:12px;background:#060908;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+.bar i{position:absolute;inset:0;width:0;transition:width .15s linear}
+.bar span{position:absolute;inset:0;font-size:9.5px;line-height:11px;text-align:center;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.bar.xp i{background:linear-gradient(#e0bd55,#8f6a1c)} .bar.hp i{background:linear-gradient(#e0503f,#7d1a12)} .bar.mp i{background:linear-gradient(#5a8fe6,#1d3f80)}
+
+#battle{position:relative;flex:0 0 46%;overflow:hidden;background:#1a211b}
+#bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:saturate(.85) brightness(.8);transition:background-image .6s}
+#battle::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:radial-gradient(ellipse at 50% 55%,transparent 45%,#0009 100%)}
+/* Android / Chrome di dong: khong co touch-action thi trinh duyet gianh cu keo de cuon / thu phong va gui pointercancel ngay khi ngon tay nhuc nhich -> joystick khong di chuyen */
+#battle,#arena{touch-action:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#arena{position:absolute;inset:0;width:100%;height:100%}
+.enh{color:#7fe3ff;font-size:.85em;text-shadow:0 0 4px #2aa8ff}
+/* Luyen Cong (survival.js) */
+#svBtn{top:auto;bottom:66px;right:8px}
+#svHud{pointer-events:none}
+#svTopBar{position:absolute;top:6px;left:6px;right:6px;display:flex;justify-content:space-between;align-items:center;z-index:5;pointer-events:auto}
+#svGoldWrap{font-size:12px;color:#ffd24a;background:#000a;padding:2px 8px;border-radius:10px;border:1px solid #e6c67a44;}
+#svHud #svPauseBtn{position:static;font-size:13px;padding:3px 10px}
+#svPad{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:5;pointer-events:auto}
+#svPad .pbtn{width:46px;height:46px;border-radius:50%;background:#1c2520dd;border:2px solid #e6c67a88;color:#fff;position:relative;overflow:hidden;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;user-select:none;box-shadow:0 3px 6px #0009}
+#svPad .pbtn:active{transform:scale(0.95)}
+#svPad .pbtn.ult{width:58px;height:58px;border-color:#e6c67a;;background:radial-gradient(circle,#2d3e33,#131a16)}
+#svPad .pbtn.ult .lock{font-size:8px;color:#ff9865;font-weight:normal;line-height:1}
+#svPad .pbtn.bomb{border-color:#ff7a45;background:#261814dd}
+#svPad .pbtn:disabled{opacity:0.45;filter:grayscale(0.8);cursor:not-allowed}
+#svPad .pbtn .cd{position:absolute;inset:0;pointer-events:none;background:conic-gradient(#000b var(--p, 0%), transparent 0)}
+body.sv #panel,body.sv #tabs,body.sv #hud,body.sv #pad,body.sv #ctrlBtn,body.sv #svBtn,body.sv #townBar{display:none!important}
+body.sv #battle{flex:1 1 auto}
+.svopts{display:grid;gap:6px}
+.svopt{display:grid;grid-template-columns:40px 1fr auto;grid-template-rows:auto auto;gap:0 8px;align-items:center;text-align:left;padding:8px;border:1px solid var(--gold2);border-radius:8px;background:linear-gradient(#1f2a25,#121a16)}
+.svopt:hover,.svopt:focus-visible{border-color:var(--gold);box-shadow:0 0 8px #e6c67a55}
+.svopt img{grid-row:1/3;width:40px;height:40px;object-fit:contain}
+.svopt b{color:var(--gold)} .svopt .new{font-style:normal;font-size:9px;padding:1px 4px;border-radius:3px;background:var(--red);color:#fff;vertical-align:1px} .svopt em{font-style:normal;color:#ffd24a;letter-spacing:1px} .svopt small{grid-column:2/4;color:var(--dim);font-size:11px}
+.svtab{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0} .svtab th,.svtab td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:right} .svtab th:first-child,.svtab td:first-child{text-align:left}
+/* thanh chieu khi Luyen Cong: 6 o chu dong + 6 o bi dong, luon hien */
+#svBar{position:absolute;left:4px;right:4px;top:28px;z-index:4;pointer-events:none}
+.svrow{display:grid;grid-template-columns:repeat(6,38px);gap:4px;justify-content:center;margin-bottom:4px}
+.svcell{position:relative;width:38px;height:38px;border:1px solid var(--gold2);border-radius:6px;background:#0b100ea8;overflow:hidden;pointer-events:auto}
+.svcell img{width:100%;height:100%;object-fit:contain;display:block}
+.svcell .star{position:absolute;left:1px;bottom:0;font-size:9px;letter-spacing:-1px;color:#ffd24a;text-shadow:0 0 3px #000}
+.svcell .cd{position:absolute;inset:0;background:conic-gradient(#000c calc(var(--cd,0)*360deg),transparent 0)}
+.svrow.pas .svcell{border-color:var(--line2)} .svrow.pas .svcell img{opacity:.85}
+/* phan thuong (rewards.js) */
+#giftBtn, #adminQuickBtn{position:relative;flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--gold2);background:radial-gradient(#3a2f1c,#120d06);font-size:16px;line-height:38px;cursor:pointer}
+#adminQuickBtn:hover{border-color:#ffeb99;box-shadow:0 0 8px rgba(255,215,0,0.5)}
+#giftBtn.on::after{content:"";position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:#e0402a;box-shadow:0 0 0 2px #0f1613;animation:gpulse 1.2s infinite}
+@keyframes gpulse{50%{transform:scale(1.3)}}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0}
+.day{padding:6px 3px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);text-align:center;font-size:11px}
+.day b{display:block;color:var(--gold);font-size:11px} .day small{display:block;color:var(--dim);font-size:9.5px;line-height:1.2}
+.day.cur{border-color:var(--gold);box-shadow:0 0 6px #e6c67a55} .day.got{opacity:.5} .day.got b::after{content:" ✓"}
+.qrow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 8px;margin:4px 0;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+.qrow small{color:var(--dim);font-size:11px} .qrow span small{display:block} .qrow.lock{opacity:.5}
+.petpick{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-height:40vh;overflow:auto}
+.petpick button{padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);font-size:10px}
+.petpick button.on{border-color:var(--gold)} .petpick img{display:block;width:100%;height:44px;object-fit:contain} .petpick b{display:block;font-weight:500}
+#hud{position:absolute;left:8px;right:8px;top:6px;display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;pointer-events:none}
+#mainSk{grid-column:1/3;font-size:11px;color:var(--gold);text-shadow:0 0 3px #000}
+
+#panel{flex:1;min-height:0;overflow:hidden;background:var(--panel);border-top:1px solid var(--gold2)}
+.tab{height:100%;overflow-y:auto;padding:10px 10px 16px}
+h3{font-family:var(--font-display);font-size:15px;font-weight:600;line-height:1.25;color:var(--gold);margin:12px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+h3 small{font:12px var(--font);color:var(--dim)}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.row{display:flex;gap:6px;align-items:center}
+.btn{background:linear-gradient(#34483f,#1f2c27);border:1px solid var(--line2);border-radius:5px;padding:7px 12px;color:var(--text)}
+.btn:active{transform:translateY(1px)} .btn.sm{padding:4px 10px;font-size:12px} .btn.on{border-color:var(--gold);color:var(--gold)}
+.btn.red{background:linear-gradient(#5a2a22,#34160f)}
+.btnrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap} .btnrow .btn{flex:1}
+.sp{flex:1}
+.boss{color:#ff9a5a} .up{color:#9fe36a} .bad{color:#ff7b62}
+.stagectl{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.log{max-height:150px;overflow:auto;font-size:12px;background:#0b100e;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.log div{padding:1px 0;border-bottom:1px solid #16201c}
+.zlist{display:grid;gap:4px}
+.zrow{display:flex;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:5px;background:var(--panel2);text-align:left}
+.zrow span{color:var(--dim);font-size:12px} .zrow.cur{border-color:var(--gold);box-shadow:inset 3px 0 0 var(--gold)} .zrow.lock b{color:var(--dim)}
+
+.eqgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.slot{aspect-ratio:1;border:1px dashed var(--line2);border-radius:6px;display:grid;place-items:center;font-size:11px;color:var(--dim);text-align:center}
+.attr{display:grid;grid-template-columns:1fr auto 64px;align-items:center;gap:8px;padding:3px 0}
+.attr b{color:var(--gold)}
+.plus{width:28px;height:26px;border-radius:5px;border:1px solid var(--gold2);color:var(--gold);font-weight:700;background:#26332d}
+.stats{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13px}
+.stats span:nth-child(even){color:var(--gold);text-align:right}
+
+.invbar{display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:12px}
+select,textarea{background:#0b100e;color:var(--text);border:1px solid var(--line2);border-radius:5px;padding:4px;font:12px var(--font);width:100%}
+.invbar select{width:auto}
+.invgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.it{position:relative;aspect-ratio:1;width:100%;border:1px solid var(--line2);border-radius:5px;background:#0c1210;display:grid;place-items:center;overflow:hidden}
+.it img{max-width:88%;max-height:88%;image-rendering:auto}
+.it i{position:absolute;right:2px;bottom:0;font:10px var(--font);color:var(--dim)}
+.it em{position:absolute;left:2px;top:0;font:400 11px var(--font);color:#7f7}
+.it.r1{border-color:#6aa8ff;box-shadow:inset 0 0 8px #3a6ab8} .it.r2{border-color:#ffd24a;box-shadow:inset 0 0 8px #a88420} .it.r3{border-color:#c77bff;box-shadow:inset 0 0 10px #7a3ab0}
+.it.bad{filter:grayscale(.8)} .it.bad i{color:#f66}
+
+.skl{display:grid;grid-template-columns:40px 1fr auto auto;gap:8px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);margin-bottom:5px}
+.skl.lock{opacity:.5} .skl.main{border-color:var(--gold);box-shadow:inset 3px 0 0 var(--gold)}
+.skl .sic{width:40px;height:40px;border-radius:5px;border:1px solid var(--line2)}
+.skl .info small{display:block;color:var(--dim);font-size:11px}
+.skl .lvl{color:var(--gold);font-size:12px}
+.tag{font-size:10px;padding:1px 5px;border-radius:3px;background:#2a3a33;color:var(--dim)} .tag.attack{background:#4a2a1f;color:#ffb38a}
+
+#tabs{display:grid;grid-template-columns:repeat(5,1fr);background:#0b100e;border-top:1px solid var(--gold2);padding-bottom:var(--safe-b)}
+#tabs button{position:relative;padding:10px 2px;font-size:12px;color:var(--dim)} #tabs button.on{color:var(--gold);box-shadow:inset 0 2px 0 var(--gold)}
+.dot{position:absolute;top:6px;right:12%;width:7px;height:7px;border-radius:50%;background:#f55;display:none} .dot.on{display:block}
+
+#modal{position:absolute;inset:0;background:#000b;display:grid;place-items:center;z-index:10;padding:12px}
+.mbox{position:relative;width:100%;max-height:92%;overflow:auto;background:var(--panel);border:1px solid var(--gold2);border-radius:8px;padding:14px}
+.mx{position:absolute;right:8px;top:6px;color:var(--dim);font-size:16px}
+.desc{color:var(--dim);font-size:13px;margin:4px 0 8px}
+.idet{display:flex;gap:10px;align-items:center}
+.idet .pic{width:56px;height:56px;border:1px solid var(--line2);border-radius:6px;display:grid;place-items:center;background:#0c1210}
+.idet .pic img{max-width:90%;max-height:90%}
+.idet h4{font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.25}
+.sl{margin:8px 0;font-size:13px} .sl .b{color:var(--text)} .sl .m{color:#8fb8ff} .sl .h{color:#6d756f} .sl .h.on{color:#8fe08a} .sl .r{color:var(--dim);font-size:12px}
+.it b.s5{position:absolute;left:3px;bottom:3px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 1px #000}
+.cmp{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;opacity:.85}
+.slotlist{display:grid;gap:8px}
+.slotrow{display:grid;grid-template-columns:44px 1fr auto auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2)}
+.slotrow.empty,.slotrow.del{grid-template-columns:1fr auto auto}
+.slotrow img{width:44px;height:54px;object-fit:contain}
+.slotrow small{display:block;color:var(--dim);font-size:11px}
+.slotrow.del{border-color:#c44}
+.facpick{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.facpick button{display:grid;grid-template-columns:48px 1fr;grid-template-rows:auto auto;column-gap:8px;align-items:center;text-align:left;padding:6px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);box-shadow:inset 3px 0 0 var(--c)}
+.facpick img{grid-row:1/3;width:48px;height:60px;object-fit:contain}
+.facpick b{font-family:var(--font-display);color:var(--gold)} .facpick small{color:var(--c)}
+#toast{position:absolute;left:50%;bottom:70px;transform:translateX(-50%);background:#000d;border:1px solid var(--gold2);padding:6px 12px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:11}
+#toast.on{opacity:1}
+.lootf{display:grid;gap:6px;font-size:13px} .lootf select{width:auto;display:inline-block}
+.dtabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0} .dtabs button{padding:4px 10px;border:1px solid var(--line2);border-radius:14px;font-size:12px} .dtabs button.on{border-color:var(--gold);color:var(--gold)}
+.shoplist{display:grid;gap:4px;max-height:55vh;overflow:auto}
+.shoprow{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;text-align:left;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+.shoprow img{width:36px;height:36px;object-fit:contain} .shoprow small{display:block;color:var(--dim);font-size:11px} .shoprow em{font-style:normal;color:var(--gold);font-size:12px}
+.shoprow.bad{opacity:.55} .shoprow.own{border-color:var(--gold2)}
+.chips{display:flex;flex-wrap:wrap;gap:4px} .chip2{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border:1px solid var(--line2);border-radius:12px;font-size:12px;background:#0b100e}
+/* dieu khien: nut che do, o ky nang, thuoc, the do dia phu */
+.chip{position:absolute;right:8px;top:34px;z-index:4;font-size:11.5px;padding:6px 10px;min-height:30px;line-height:18px;box-sizing:border-box;border-radius:12px;border:1px solid var(--gold2);background:#000a;color:var(--gold)}
+.chip.on{background:#3a2a10;box-shadow:0 0 8px #e6c67a66}
+#pad{position:absolute;right:8px;left:auto;bottom:8px;width:170px;height:auto;z-index:5;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;pointer-events:none}
+.pbtn{position:relative;width:50px;height:50px;border-radius:50%;border:2px solid var(--gold2);background:#0c120f center/cover no-repeat;overflow:hidden;pointer-events:auto;touch-action:none;box-shadow:0 2px 6px #000b}
+.pbtn i{position:absolute;inset:0;background:center/cover no-repeat}
+.pbtn b{position:absolute;right:3px;bottom:0;font-size:9px;color:#fff;text-shadow:0 0 2px #000}
+.pbtn.empty{border-style:dashed;opacity:.5} .pbtn.cur{border-color:#ffe07a;box-shadow:0 0 10px #ffd24a}
+.pbtn:active{transform:scale(.92)}
+.pbtn.pot{width:46px;height:46px;margin-top:6px} .pbtn.pot span{position:absolute;inset:0;display:grid;place-items:center;font:400 10px/1.05 var(--font);color:#fff;text-shadow:0 0 3px #000;text-align:center}
+.pbtn.hp{background:radial-gradient(#b3342a,#3a0c08)} .pbtn.mp{background:radial-gradient(#3a6ad0,#0c1a40)} .pbtn.tp{background:radial-gradient(#c9a23a,#3a2a08)}
+.pbtn .cd{position:absolute;inset:0;background:conic-gradient(#000b var(--p,0%),transparent 0);z-index:1}
+#townBar{position:absolute;left:8px;right:8px;top:64px;z-index:5;display:flex;gap:6px;align-items:center;padding:6px 8px;background:#000c;border:1px solid var(--gold2);border-radius:6px}
+#townBar b{flex:1;color:var(--gold);font-family:var(--font-display)}
+.skl .slots{display:flex;gap:3px;grid-column:2/5} .skl .slots button{font-size:10px;padding:1px 6px;border:1px solid var(--line2);border-radius:4px}
+.skl .slots button.on{border-color:var(--gold);color:var(--gold)}
+
+/* ======== Giao dien goc JX (tools/extract_ui.py -> game/ui/*.png). Thieu anh thi giu kieu cu ben tren. ======== */
+.mbox{border:14px solid transparent;border-image:url(ui/panel.png) 16 / 14px stretch;background-clip:padding-box}
+.btn{background-image:url(ui/btn.png);background-size:400% 100%;background-position:0 0;border-color:#6d5a33;text-shadow:0 1px 2px #000}
+.btn:hover{background-position:33.333% 0} .btn:active{background-position:66.666% 0} .btn[disabled]{background-position:100% 0}
+.bar.hp i{background:url(ui/bar_hp.png) 0 0 / 100% 100%,linear-gradient(#e0503f,#7d1a12)}
+.bar.mp i{background:url(ui/bar_mp.png) 0 0 / 100% 100%,linear-gradient(#5a8fe6,#1d3f80)}
+.bar.xp i{background:url(ui/bar_xp.png) 0 0 / 100% 100%,linear-gradient(#e0bd55,#8f6a1c)}
+#hud .bar{border-image:url(ui/bar_panel.png) 3 / 3px stretch}
+#tabs{background:url(ui/tabbar.png) center / 100% 100%,linear-gradient(#1a2521,#0f1613)}
+#tabs button{position:relative;padding:25px 2px 5px;font-size:11px;line-height:1.1}
+#tabs button::before{content:"";position:absolute;left:50%;top:2px;width:20px;height:20px;margin-left:-10px;background-size:300% 100%;background-position:0 0}
+#tabs button.on::before{background-position:50% 0}
+#tabs button[data-t=log]::before{background-image:url(ui/ic_log.png)} #tabs button[data-t=char]::before{background-image:url(ui/ic_char.png)}
+#tabs button[data-t=skill]::before{background-image:url(ui/ic_skill.png)} #tabs button[data-t=inv]::before{background-image:url(ui/ic_item.png)}
+#tabs button[data-t=more]::before{background-image:url(ui/ic_more.png)}
+#pad .pbtn.sk{background:url(ui/slot.png) center / 100% 100%,radial-gradient(#26302b,#0b100e)}
+.facpick button{position:relative}
+.s5b{position:absolute;right:4px;top:4px;width:28px;height:28px;background-size:200% 100%;background-position:0 0;filter:drop-shadow(0 0 2px #000)}
+.facpick button:hover .s5b{background-position:100% 0}
+
+/* ======== Chieu cao that cua man hinh (Safari / thanh cong cu dien thoai) + che do thu gon ======== */
+html,body{overscroll-behavior:none}
+#app{height:100vh;height:var(--app-h,100dvh)}
+#tabs{position:relative;z-index:6;touch-action:manipulation}
+#tabs button{touch-action:manipulation}
+#compactBtn{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--gold2);background:radial-gradient(#26302b,#0b100e);color:var(--gold);font-size:15px;line-height:38px}
+body.compact #panel,body.compact #tabs{display:none!important}
+body.compact #battle{flex:1 1 auto}
+body.compact #compactBtn{background:radial-gradient(#4a3a18,#1a1206);box-shadow:0 0 6px #e6c67a88}
+
+/* ==== Man hinh ngang (landscape): san dau toan man hinh, bang thong tin ben phai ==== */
+@media (orientation:landscape){
+  #app{width:100vw;display:grid;grid-template-columns:1fr min(38vw,340px);grid-template-rows:auto 1fr auto;grid-template-areas:"top top" "battle panel" "tabs panel"}
+  #top{grid-area:top} #battle{grid-area:battle} #panel{grid-area:panel;border-top:0;border-left:1px solid var(--gold2)} #tabs{grid-area:tabs}
+  #pad{bottom:52px}
+  body.compact #app{grid-template-columns:1fr;grid-template-areas:"top" "battle" "tabs"}
+}
+
+/* Noto Sans cho toan bo giao dien + Grenze cho tieu de (xem fonts/font.css).
+   Chu so dung tabular-nums de giu can thang cot nhu font mono cu; do dam that thay cho cach cu (chi dung mau). */
+html,body,button,input,select,textarea{font-family:var(--font);font-variant-numeric:tabular-nums}
+/* Truoc day co rule 'b,strong,h1..h4,th{font-weight:400}' vi IBM Plex Mono chi co MOT do dam.
+   Nay Noto Sans la variable font (100-900) nen dung do dam that de phan cap, thay vi chi dung mau. */
+b,strong{font-weight:650}
+th{font-weight:600}
+
+/* nut doi chuot / joystick: chi hien tren may tinh man hinh ngang */
+#inBtn{display:none;position:absolute;right:8px;top:70px;z-index:4}
+body.deskland #inBtn{display:block}
+body.sv #inBtn{top:44px}
+
+.cmp2{margin:6px 0;padding:6px 8px;border:1px solid var(--line2);border-radius:6px;background:#0b100e}
+.cmpv{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
+.cp{color:#7fe07f}.cn{color:#ff7a6a}
+.reqbad{margin-top:6px;color:#ff9a8a;font-size:12px}
+.reqnote{margin-top:6px;color:#e8c66a;font-size:12px}
+
+#rotBtn{right:auto;left:8px;top:auto;bottom:132px}
+#inBtn{right:auto!important;left:8px;top:auto!important;bottom:204px}
+#svBtn{left:8px!important;right:auto!important;top:auto!important;bottom:168px}   /* cum nut trai: xoay chieu / luyen cong / chuot-joystick xep doc tren joystick, khong de len cum chieu thuc ben phai */
+body.sv #rotBtn{display:none!important}
+
+/* giao dien di dong nho di 20%: ung dung rong / cao 1,25 lan roi thu nho 0,8 (uiScale trong render.js) */
+body.mob #app{transform:scale(.8);transform-origin:0 0;width:125vw!important;height:calc(var(--app-h,100dvh)*1.25)!important;margin:0!important;max-width:none}
+
+/* cong / rut diem / thong tin */
+.pm{display:inline-flex;gap:4px} .pm button{width:28px}
+.minus{width:28px;height:26px;border-radius:5px;border:1px solid #a55;color:#f88;background:#2e2222;font-weight:700}
+.minus:disabled{opacity:.35}
+.skinfo{width:28px;height:26px;border-radius:5px;border:1px solid var(--line2);color:var(--dim);background:#1b2420;font-style:italic}
+.skl .slots{grid-column:2/5}
+
+/* co chu chinh duoc (the Khac > Tro nang): ap dung cho bang thong tin, the, hop thoai */
+#panel,#modal .mbox,#tabs,#toast{zoom:var(--fs,1)}
+.todo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;padding:6px 8px;border:1px solid var(--gold2);border-radius:6px;background:#1a1f16}
+.todo b{color:var(--gold);font-size:12px;margin-right:2px}
+.todochip{cursor:pointer;border:1px solid var(--gold2);background:#26301f;color:var(--text)}
+.codex .card.lock{opacity:.55}
+.mbox:focus{outline:none}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+
+/* QA-040: ton trong thiet lap he thong "giam chuyen dong" - tat animation CSS */
+@media (prefers-reduced-motion: reduce){
+  #giftBtn.on::after{animation:none}
+  .pbtn:active,#svPad .pbtn:active{transform:none}
+  #bg{transition:none}
+}

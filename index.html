@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e1412">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>Võ Lâm Idle</title>
+<link rel="stylesheet" href="fonts/font.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="lvbox"><span id="lv">1</span></div>
+    <div class="topmid">
+      <div class="row"><b id="heroName">Võ Lâm Idle</b><span id="stageLbl"></span></div>
+      <div class="bar xp"><i id="xpBar"></i><span id="xpTxt"></span></div>
+    </div>
+    <div class="gold"><span class="coin"></span><span id="gold">0</span></div>
+    <button id="adminQuickBtn" title="Bảng thử nghiệm (Mod Admin)" aria-label="Bảng thử nghiệm" onclick="if(window.adminModal)adminModal()">⚡</button>
+    <button id="giftBtn" title="Phần thưởng" aria-label="Phần thưởng">🎁</button>
+    <button id="compactBtn" title="Thu gọn / mở rộng sân đấu" aria-label="Thu gọn hoặc mở rộng sân đấu">⛶</button>
+  </header>
+
+  <section id="battle">
+    <div id="bg"></div>
+    <canvas id="arena"></canvas>
+    <div id="hud">
+      <div class="bar hp"><i id="hpBar"></i><span id="hpTxt"></span></div>
+      <div class="bar mp"><i id="mpBar"></i><span id="mpTxt"></span></div>
+      <div id="mainSk"></div>
+    </div>
+    <button id="ctrlBtn" class="chip"></button>
+    <button id="inBtn" class="chip"></button>
+    <button id="rotBtn" class="chip"></button>
+    <button id="svBtn" class="chip">⚔ Luyện Công</button>
+    <div id="svHud" class="hidden">
+      <div id="svTopBar">
+        <span id="svGoldWrap">💰 <b id="svGold">0</b></span>
+        <button id="svPauseBtn" class="chip">⏸</button>
+      </div>
+      <div id="svPad">
+        <button id="svUlt" class="pbtn ult"><div class="cd"></div><span class="lbl">Tuyệt kỹ</span><small class="lock"></small></button>
+        <button id="svBomb" class="pbtn bomb"><span class="lbl">💣 <b id="svBombCnt">0</b></span></button>
+        <button id="svHpBtn" class="pbtn pot hp"><div class="cd"></div><span>HP</span></button>
+      </div>
+    </div>
+    <div id="svBar" class="hidden"></div>
+    <div id="townBar" class="hidden"><b id="townName"></b><button class="btn sm" id="bShop">Cửa hàng</button><button class="btn sm" id="bStashT">Kho chung</button><button class="btn sm" id="bSellTown">Bán đồ không khớp lọc</button><button class="btn sm on" id="bBack">Trở lại ải</button></div>
+    <div id="pad">
+      <button class="pbtn sk" data-i="0" aria-label="Ô kỹ năng 1"><i></i><b>1</b></button>
+      <button class="pbtn sk" data-i="1" aria-label="Ô kỹ năng 2"><i></i><b>2</b></button>
+      <button class="pbtn sk" data-i="2" aria-label="Ô kỹ năng 3"><i></i><b>3</b></button>
+      <button class="pbtn sk" data-i="3" aria-label="Ô kỹ năng 4"><i></i><b>4</b></button>
+      <button class="pbtn pot hp" id="bHp"><div class="cd"></div><span>HP</span></button>
+      <button class="pbtn pot mp" id="bMp"><div class="cd"></div><span>MP</span></button>
+      <button class="pbtn pot tp" id="bTp"><div class="cd"></div><span>Về<br>thành</span></button>
+    </div>
+  </section>
+
+  <main id="panel">
+    <div class="tab" id="t-log"></div>
+    <div class="tab hidden" id="t-char"></div>
+    <div class="tab hidden" id="t-skill"></div>
+    <div class="tab hidden" id="t-inv"></div>
+    <div class="tab hidden" id="t-more"></div>
+  </main>
+
+  <nav id="tabs">
+    <button data-t="log" class="on">Giang hồ</button>
+    <button data-t="char">Nhân vật<em class="dot" id="dotChar"></em></button>
+    <button data-t="skill">Võ công<em class="dot" id="dotSkill"></em></button>
+    <button data-t="inv">Hành trang</button>
+    <button data-t="more">Khác</button>
+  </nav>
+
+  <div id="modal" class="hidden" role="dialog" aria-modal="true"><div class="mbox" tabindex="-1"><button class="mx" id="mClose">✕</button><div id="mBody"></div></div></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="data.js"></script>
+<script src="world.js"></script>
+<script src="sound.js"></script>
+<script src="fx.js"></script>
+<script src="jmo.js"></script>
+<script src="js/core.js"></script>
+<script src="js/mapobs.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/loot.js"></script>
+<script src="rdata.js"></script>
+<script src="js/sets.js"></script>
+<script src="js/recipes.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/save.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/control.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/rewards.js"></script>
+<script src="js/forge.js"></script>
+<script src="js/auto.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/guide.js"></script>
+<script src="js/stash.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
