@@ -1,6 +1,8 @@
 const { WebSocketServer } = require("ws");
 const { verifyToken } = require("./auth");
 const engine = require("./engine");
+const guild = require("./guild");
+const battleground = require("./battleground");
 
 class GameSocketServer {
   constructor(httpServer) {
@@ -176,6 +178,15 @@ class GameSocketServer {
               exp: result.exp,
               gold: result.gold
             });
+
+            // Tống Kim: Cộng điểm chiến trường nếu đang diễn ra
+            if (client.user && battleground.tongKim.state === "RUNNING") {
+              battleground.addScore(client.user.id, 10, true);
+              this.broadcastAll({
+                type: "TONG_KIM_UPDATE",
+                data: battleground.getTongKimSummary()
+              });
+            }
           }
         }
         break;
@@ -207,8 +218,118 @@ class GameSocketServer {
               this.send(targetWs, chatPayload);
             }
           }
+        } else if (channel === "guild") {
+          const myGuild = client.user ? guild.getPlayerGuild(client.user.id) : null;
+          if (myGuild) {
+            for (const [targetWs, targetClient] of this.clients.entries()) {
+              if (targetClient.user) {
+                const targetGuild = guild.getPlayerGuild(targetClient.user.id);
+                if (targetGuild && targetGuild.id === myGuild.id) {
+                  this.send(targetWs, chatPayload);
+                }
+              }
+            }
+          } else {
+            this.send(ws, {
+              type: "SYSTEM_NOTICE",
+              text: "Đại hiệp chưa gia nhập Bang Hội nào nên không thể gửi tin kênh Bang!",
+              color: "#f87171"
+            });
+          }
+        } else if (channel === "battle") {
+          // Kênh Chiến Trường Tống Kim
+          this.broadcastAll(chatPayload);
         } else {
           this.broadcastAll(chatPayload);
+        }
+        break;
+      }
+
+      case "DUEL_INVITE": {
+        const targetId = msg.targetId;
+        let targetWs = null;
+        let targetClient = null;
+        for (const [tWs, tCli] of this.clients.entries()) {
+          if (tCli.id === targetId || (tCli.user && tCli.user.id === targetId)) {
+            targetWs = tWs;
+            targetClient = tCli;
+            break;
+          }
+        }
+
+        if (!targetClient || !targetWs) {
+          this.send(ws, { type: "DUEL_ERROR", error: "Đối thủ không trực tuyến hoặc đã rời bản đồ" });
+          break;
+        }
+
+        const duel = battleground.createDuel(client, targetClient);
+        this.send(targetWs, {
+          type: "DUEL_INVITE_REQUEST",
+          duelId: duel.id,
+          challengerId: client.id,
+          challengerName: client.name,
+          challengerLvl: client.lvl,
+          challengerFac: client.fac
+        });
+        this.send(ws, {
+          type: "SYSTEM_NOTICE",
+          text: `Đã gửi lời thách đấu võ nghệ tới [${targetClient.name}], đang đợi hồi đáp...`,
+          color: "#38bdf8"
+        });
+        break;
+      }
+
+      case "DUEL_ACCEPT": {
+        const duelId = msg.duelId;
+        const res = battleground.acceptDuel(duelId, client.id);
+        if (!res.ok) {
+          this.send(ws, { type: "DUEL_ERROR", error: res.error });
+          break;
+        }
+
+        const duel = res.duel;
+        for (const [tWs, tCli] of this.clients.entries()) {
+          if (tCli.id === duel.p1.id || tCli.id === duel.p2.id) {
+            this.send(tWs, { type: "DUEL_START", duel });
+          }
+        }
+        this.broadcastNotice(`⚔️ [${duel.p1.name}] và [${duel.p2.name}] đã bước lên Lôi Đài tỉ thí võ nghệ!`, "#ff8800");
+        break;
+      }
+
+      case "DUEL_DECLINE": {
+        const duelId = msg.duelId;
+        const res = battleground.declineDuel(duelId, client.id);
+        if (res.ok && res.duel) {
+          for (const [tWs, tCli] of this.clients.entries()) {
+            if (tCli.id === res.duel.p1.id) {
+              this.send(tWs, {
+                type: "SYSTEM_NOTICE",
+                text: `Đối thủ đã từ chối lời thách đấu của bạn.`,
+                color: "#94a3b8"
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "DUEL_ATTACK": {
+        const { duelId, damage } = msg;
+        const hitResult = battleground.damageDuel(duelId, client.id, damage || 50);
+        if (!hitResult) break;
+
+        const duel = battleground.getDuel(duelId);
+        if (duel) {
+          for (const [tWs, tCli] of this.clients.entries()) {
+            if (tCli.id === duel.p1.id || tCli.id === duel.p2.id) {
+              this.send(tWs, { type: "DUEL_HIT", ...hitResult });
+            }
+          }
+
+          if (hitResult.isFinished) {
+            this.broadcastNotice(`🏆 [${hitResult.winnerName}] đã giành chiến thắng vang dội trên Lôi Đài!`, "#22c55e");
+          }
         }
         break;
       }

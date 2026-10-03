@@ -4,6 +4,8 @@ const path = require("path");
 const auth = require("./server/auth");
 const admin = require("./server/admin");
 const engine = require("./server/engine");
+const guild = require("./server/guild");
+const battleground = require("./server/battleground");
 const GameSocketServer = require("./server/ws");
 
 const PORT = process.env.PORT || 3000;
@@ -150,11 +152,23 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, boss });
     }
 
-    if (req.method === "POST" && pathname === "/api/admin/server-wipe") {
-      const { confirmKey } = await readBody(req);
-      if (confirmKey !== "WIPE-CONFIRM") {
-        return sendJson(res, 400, { ok: false, error: "Vui lòng nhập chính xác từ khóa xác nhận: WIPE-CONFIRM" });
+    if (req.method === "POST" && pathname === "/api/admin/tongkim/start") {
+      const result = battleground.startTongKimRegistration(120);
+      if (gameSocket) {
+        gameSocket.broadcastNotice("⚔️ CHIẾN TRƯỜNG TỐNG KIM ĐÃ MỞ BÁO DANH! Các hiệp khách mau mau gia nhập!", "#38bdf8");
       }
+      return sendJson(res, 200, result);
+    }
+
+    if (req.method === "POST" && pathname === "/api/admin/congthanh/start") {
+      const result = battleground.startCongThanh(1800);
+      if (gameSocket) {
+        gameSocket.broadcastNotice("🚩 CÔNG THÀNH CHIẾN BIỆN KINH ĐÃ BẮT ĐẦU! Mau cùng bang hội phá hủy Long Trụ!", "#f59e0b");
+      }
+      return sendJson(res, 200, result);
+    }
+
+    if (req.method === "POST" && pathname === "/api/admin/server-wipe") {
       const result = admin.wipeServerData(gameSocket);
       return sendJson(res, 200, result);
     }
@@ -204,6 +218,79 @@ const server = http.createServer(async (req, res) => {
         onlineCount: gameSocket ? gameSocket.clients.size : 0,
         serverTime: Date.now()
       });
+    }
+
+    // --- BANG HỘI API ---
+    if (req.method === "GET" && pathname === "/api/guild/list") {
+      return sendJson(res, 200, { ok: true, guilds: guild.getGuildList() });
+    }
+
+    if (req.method === "POST" && pathname === "/api/guild/create") {
+      const { token, name, emblem } = await readBody(req);
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const result = guild.createGuild(user, name, emblem);
+      return sendJson(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "POST" && pathname === "/api/guild/join") {
+      const { token, guildId } = await readBody(req);
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const result = guild.joinGuild(guildId, user);
+      return sendJson(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "POST" && pathname === "/api/guild/leave") {
+      const { token, guildId } = await readBody(req);
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const result = guild.leaveGuild(guildId, user.id);
+      return sendJson(res, result.ok ? 200 : 400, result);
+    }
+
+    if (req.method === "GET" && pathname === "/api/guild/my") {
+      const token = parsedUrl.searchParams.get("token");
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const myGuild = guild.getPlayerGuild(user.id);
+      return sendJson(res, 200, { ok: true, guild: myGuild });
+    }
+
+    // --- TỐNG KIM API ---
+    if (req.method === "GET" && pathname === "/api/tongkim/status") {
+      return sendJson(res, 200, { ok: true, ...battleground.getTongKimSummary() });
+    }
+
+    if (req.method === "POST" && pathname === "/api/tongkim/join") {
+      const { token, side } = await readBody(req);
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const result = battleground.joinTongKim(user.id, user.username, side);
+      return sendJson(res, result.ok ? 200 : 400, result);
+    }
+
+    // --- CÔNG THÀNH CHIẾN API ---
+    if (req.method === "GET" && pathname === "/api/congthanh/status") {
+      return sendJson(res, 200, { ok: true, ...battleground.getCongThanhSummary() });
+    }
+
+    if (req.method === "POST" && pathname === "/api/congthanh/attack") {
+      const { token, damage } = await readBody(req);
+      const user = auth.verifyToken(token);
+      if (!user) return sendJson(res, 401, { ok: false, error: "Chưa đăng nhập" });
+      const myGuild = guild.getPlayerGuild(user.id);
+      const result = battleground.attackPillar(
+        user.id,
+        user.username,
+        myGuild ? myGuild.id : null,
+        myGuild ? myGuild.name : null,
+        damage
+      );
+      if (result.conquered && gameSocket) {
+        gameSocket.broadcastNotice(`🚩 LONG TRỤ BIỆN KINH ĐÃ BỊ CÔNG PHÁ! Bang Hội [${result.newMasterGuild}] đã xưng bá và chiếm quyền Biện Kinh Thành!`, "#ff4444");
+      }
+      return sendJson(res, 200, result);
     }
 
     return sendJson(res, 404, { ok: false, error: "API not found" });

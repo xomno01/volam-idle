@@ -214,6 +214,8 @@
             <button class="btn btn-gold" onclick="switchTab('tab-broadcast')">📢 Phát Thông Báo Server</button>
             <button class="btn" onclick="quickGiftAll()">🎁 Thưởng Toàn Server (10M Lượng)</button>
             <button class="btn btn-red" onclick="quickSpawnBoss()">🔥 Gọi Boss Ngay Tại Hoa Sơn</button>
+            <button class="btn" style="background:#0284c7; border-color:#38bdf8;" onclick="quickStartTongKim()">⚔️ Bắt Đầu Tống Kim</button>
+            <button class="btn" style="background:#ea580c; border-color:#fb923c;" onclick="quickStartCongThanh()">🚩 Mở Công Thành Chiến</button>
             <button class="btn btn-secondary" onclick="loadOverview()">🔄 Làm Mới Dữ Liệu</button>
           </div>
         </div>
@@ -717,6 +719,18 @@
       if (res.ok) {
         alert(`Đã triệu hồi Boss Cổ Bách tại Hoa Sơn!`);
       }
+    }
+
+    async function quickStartTongKim() {
+      const res = await adminFetch("/api/admin/tongkim/start", { method: "POST" });
+      if (res.ok) alert("⚔️ Đã mở báo danh Chiến Trường Tống Kim thành công!");
+      else alert("Lỗi: " + res.error);
+    }
+
+    async function quickStartCongThanh() {
+      const res = await adminFetch("/api/admin/congthanh/start", { method: "POST" });
+      if (res.ok) alert("🚩 Đã khai mở Công Thành Chiến Biện Kinh thành công!");
+      else alert("Lỗi: " + res.error);
     }
 
     async function submitBroadcast() {

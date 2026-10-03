@@ -199,6 +199,9 @@ function bindControls() {
   $('#bBack').onclick = backFromTown;
   $('#bShop').onclick = () => shopModal(); $('#bStashT').onclick = () => stashModal();
   $('#bSellTown').onclick = () => { const r = sellUnmatched(); toast(`Bán ${r.n} món`); refresh(); };
+  const bG = $('#bGuildTown'); if (bG) bG.onclick = () => { if (window.NET) NET.showGuildModal(); };
+  const bTK = $('#bTongKimTown'); if (bTK) bTK.onclick = () => { if (window.NET) NET.showTongKimModal(); };
+  const bSg = $('#bSiegeTown'); if (bSg) bSg.onclick = () => { if (window.NET) NET.showSiegeModal(); };
 }
 function drawJoystick(c) {
   if (mouseMode()) return;

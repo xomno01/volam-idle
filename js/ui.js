@@ -282,6 +282,15 @@ function renderMore() {
         <button class="btn red" id="bMoreLogout">🚪 Đăng xuất</button>
       </div>
     </div>
+    <h3>Hoạt Động Online & Giang Hồ</h3><div class="card">
+      <p class="dim small">Các tính năng bang hội, chiến trường Tống Kim, công thành Biện Kinh và lôi đài tỉ thí võ nghệ trực tuyến.</p>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn" id="bMoreGuild">🏛️ Bang Hội</button>
+        <button class="btn" id="bMoreTongKim">⚔️ Tống Kim</button>
+        <button class="btn" id="bMoreSiege">🚩 Công Thành</button>
+        <button class="btn" id="bMoreDuel">🤺 Lôi Đài</button>
+      </div>
+    </div>
     <h3>Nhân vật</h3><div class="card lootf">
       <div class="row">Tên <input id="cName" maxlength="16" value="${esc(S.name || '')}" style="flex:1"></div>
       <div class="row">Giới tính <select id="cSex"><option value="0" ${S.sex ? '' : 'selected'}>Nam</option><option value="1" ${S.sex ? 'selected' : ''}>Nữ</option></select></div>
@@ -319,6 +328,10 @@ function renderMore() {
   const bMoreAcc = $('#bMoreAccount'); if (bMoreAcc) bMoreAcc.onclick = () => { if (window.NET) NET.showAccountModal(); };
   const bMoreSrv = $('#bMoreServer'); if (bMoreSrv) bMoreSrv.onclick = () => { if (window.NET) NET.showServerModal(); };
   const bMoreLog = $('#bMoreLogout'); if (bMoreLog) bMoreLog.onclick = () => { if (window.NET) NET.logout(); };
+  const bMoreGld = $('#bMoreGuild'); if (bMoreGld) bMoreGld.onclick = () => { if (window.NET) NET.showGuildModal(); };
+  const bMoreTK = $('#bMoreTongKim'); if (bMoreTK) bMoreTK.onclick = () => { if (window.NET) NET.showTongKimModal(); };
+  const bMoreSg = $('#bMoreSiege'); if (bMoreSg) bMoreSg.onclick = () => { if (window.NET) NET.showSiegeModal(); };
+  const bMoreDu = $('#bMoreDuel'); if (bMoreDu) bMoreDu.onclick = () => { if (window.NET) NET.showDuelListModal(); };
   $('#bName').onclick = () => {
     const n = ($('#cName').value || '').trim().slice(0, 16) || 'Tân thủ';
     const sx = +$('#cSex').value ? 1 : 0, doi = sx !== S.sex;

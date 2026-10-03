@@ -314,6 +314,41 @@ const NET = {
         }
         break;
       }
+
+      case 'TONG_KIM_UPDATE': {
+        this.tongKimData = msg.data;
+        break;
+      }
+
+      case 'DUEL_INVITE_REQUEST': {
+        this.showDuelPrompt(msg.duelId, msg.challengerName, msg.challengerLvl);
+        break;
+      }
+
+      case 'DUEL_START': {
+        if (typeof toast === 'function') toast('⚔️ TRẬN TỈ THÍ LÔI ĐÀI CHÍNH THỨC BẮT ĐẦU!');
+        if (typeof uiSfx === 'function') {
+          try { uiSfx('boss'); } catch (e) {}
+        }
+        break;
+      }
+
+      case 'DUEL_HIT': {
+        if (typeof addText === 'function') {
+          addText(H.x, H.y - 40, `-${fmt(msg.damage)}`, '#ff3333', 14);
+        }
+        if (msg.isFinished) {
+          if (typeof toast === 'function') {
+            toast(`🏆 Người chiến thắng Lôi Đài: [${msg.winnerName}]!`);
+          }
+        }
+        break;
+      }
+
+      case 'DUEL_ERROR': {
+        if (typeof toast === 'function') toast('⚠️ Lôi Đài: ' + msg.error);
+        break;
+      }
     }
   },
 
@@ -524,6 +559,8 @@ const NET = {
       .chat-chan { font-weight: bold; padding: 1px 4px; border-radius: 3px; font-size: 10px; margin-right: 4px; }
       .chat-chan.world { background: #5f4215; color: #ffdb8a; }
       .chat-chan.sect { background: #19405a; color: #8ad2ff; }
+      .chat-chan.guild { background: #14532d; color: #86efac; }
+      .chat-chan.battle { background: #7c2d12; color: #fdba74; }
       .chat-chan.sys { background: #5a1919; color: #ff8a8a; }
       .chat-sender { color: #a3e635; font-weight: bold; margin-right: 4px; }
 
@@ -632,6 +669,8 @@ const NET = {
         <select id="chatChannelSel">
           <option value="world">Thế giới</option>
           <option value="sect">Môn phái</option>
+          <option value="guild">Bang hội</option>
+          <option value="battle">Chiến trường</option>
         </select>
         <input id="chatInputText" placeholder="Gõ tin nhắn giang hồ..." maxlength="120">
         <button id="chatSendBtn">Gửi</button>
@@ -661,8 +700,8 @@ const NET = {
     const div = document.createElement('div');
     div.className = 'chat-line';
 
-    const chanClass = msg.channel === 'sect' ? 'sect' : msg.channel === 'sys' ? 'sys' : 'world';
-    const chanName = msg.channel === 'sect' ? 'MÔN PHÁI' : msg.channel === 'sys' ? 'HỆ THỐNG' : 'THẾ GIỚI';
+    const chanClass = msg.channel === 'sect' ? 'sect' : msg.channel === 'guild' ? 'guild' : msg.channel === 'battle' ? 'battle' : msg.channel === 'sys' ? 'sys' : 'world';
+    const chanName = msg.channel === 'sect' ? 'MÔN PHÁI' : msg.channel === 'guild' ? 'BANG HỘI' : msg.channel === 'battle' ? 'CHIẾN TRƯỜNG' : msg.channel === 'sys' ? 'HỆ THỐNG' : 'THẾ GIỚI';
 
     div.innerHTML = `
       <span class="chat-time">${msg.time || ''}</span>
@@ -1008,6 +1047,383 @@ const NET = {
     // Kết nối WebSocket & bắt đầu thế giới online
     this.connect();
     this.updateAuthButton();
+  },
+
+  /* ================= BANG HỘI ================= */
+  async getGuildList() {
+    const fullUrl = this.getHttpBase() + '/api/guild/list';
+    try {
+      const res = await fetch(fullUrl);
+      return await res.json();
+    } catch (e) {
+      return { ok: false, guilds: [] };
+    }
+  },
+
+  async getMyGuild() {
+    if (!this.token) return { ok: false };
+    const fullUrl = this.getHttpBase() + `/api/guild/my?token=${encodeURIComponent(this.token)}`;
+    try {
+      const res = await fetch(fullUrl);
+      return await res.json();
+    } catch (e) {
+      return { ok: false };
+    }
+  },
+
+  async createGuild(name, emblem) {
+    return await this.apiPost('/api/guild/create', { token: this.token, name, emblem });
+  },
+
+  async joinGuild(guildId) {
+    return await this.apiPost('/api/guild/join', { token: this.token, guildId });
+  },
+
+  async leaveGuild(guildId) {
+    return await this.apiPost('/api/guild/leave', { token: this.token, guildId });
+  },
+
+  async showGuildModal() {
+    if (!this.token) return this.showAuthGate();
+    const myRes = await this.getMyGuild();
+    const myGuild = myRes ? myRes.guild : null;
+
+    if (myGuild) {
+      const isMaster = myGuild.masterId === (this.user ? this.user.id : '');
+      const memberRows = myGuild.members.map(m => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #1a2e22; font-size:12px;">
+          <span><b>${esc(m.username)}</b> ${m.role === 'master' ? '<span style="color:#fbbf24;">[Bang Chủ]</span>' : '<span style="color:#94a3b8;">[Thành viên]</span>'}</span>
+          <span style="color:#38bdf8;">Đóng góp: ${m.contrib || 0}</span>
+        </div>
+      `).join('');
+
+      modal(`
+        <h3 style="color:#38bdf8;">🏛️ Bang Hội: ${esc(myGuild.emblem || '⚔️')} ${esc(myGuild.name)}</h3>
+        <div class="card" style="padding:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span>Bang chủ: <b style="color:#fbbf24;">${esc(myGuild.masterName)}</b></span>
+            <span>Cấp bang: <b style="color:#38bdf8;">Lv${myGuild.level}</b></span>
+          </div>
+          <div style="font-size:12px; color:#cbd5e1; margin-bottom:8px;">
+            Thành viên: <b>${myGuild.members.length} / 50</b> | Quỹ bang: <b style="color:#fbbf24;">${fmt(myGuild.fund)} lượng</b>
+          </div>
+          <div style="background:#0a120e; padding:8px; border-radius:6px; font-size:12px; color:#a3e635; margin-bottom:8px;">
+            📢 ${esc(myGuild.notice)}
+          </div>
+        </div>
+
+        <h4>Danh Sách Huynh Đệ Trong Bang</h4>
+        <div class="card" style="max-height:160px; overflow-y:auto; padding:6px 12px; margin-bottom:12px;">
+          ${memberRows}
+        </div>
+
+        <div class="btnrow">
+          <button class="btn" onclick="closeModal()">Đóng</button>
+          <button class="btn red" id="bLeaveGuild">${isMaster ? 'Giải Tán Bang' : 'Rời Bang'}</button>
+        </div>
+      `, () => {
+        $('#bLeaveGuild').onclick = async () => {
+          if (!confirm(isMaster ? 'Bạn là Bang chủ, rời đi sẽ giải tán bang?' : 'Bạn chắc chắn muốn rời bang hội?')) return;
+          const res = await this.leaveGuild(myGuild.id);
+          if (res.ok) {
+            toast('Đã rời khỏi bang hội.');
+            closeModal(true);
+          } else {
+            toast('Lỗi: ' + res.error);
+          }
+        };
+      });
+    } else {
+      const listRes = await this.getGuildList();
+      const guilds = listRes.guilds || [];
+
+      const guildRows = guilds.length ? guilds.map(g => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #1a2e22;">
+          <div>
+            <b style="color:#38bdf8; font-size:14px;">${esc(g.emblem || '⚔️')} ${esc(g.name)}</b>
+            <div style="font-size:11px; color:#94a3b8;">Bang chủ: ${esc(g.masterName)} · ${g.members.length} thành viên</div>
+          </div>
+          <button class="btn sm" onclick="NET.doJoinGuild('${g.id}')">Gia Nhập</button>
+        </div>
+      `).join('') : '<div style="text-align:center; color:#94a3b8; padding:12px;">Chưa có bang hội nào được thành lập. Hãy là người đầu tiên!</div>';
+
+      modal(`
+        <h3 style="color:#38bdf8;">🏛️ Giang Hồ Bang Hội</h3>
+        <p class="desc">Gia nhập bang hội để cùng huynh đệ đồng lòng chiến đấu, hưởng phúc lợi và tham gia Công Thành Chiến!</p>
+
+        <div class="card" style="max-height:180px; overflow-y:auto; padding:8px 12px; margin-bottom:12px;">
+          ${guildRows}
+        </div>
+
+        <div class="card" style="padding:12px; margin-bottom:12px;">
+          <h4 style="margin-bottom:8px; color:#fbbf24;">⚡ Thành Lập Bang Hội Mới</h4>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input id="newGuildName" placeholder="Tên bang (3-16 ký tự)" maxlength="16" style="flex:1; padding:6px 10px; background:#0b131e; border:1px solid #334155; border-radius:6px; color:#fff;">
+            <select id="newGuildEmblem" style="background:#0b131e; border:1px solid #334155; border-radius:6px; color:#fff; padding:6px;">
+              <option value="⚔️">⚔️ Kiếm</option>
+              <option value="🐉">🐉 Long</option>
+              <option value="🦅">🦅 Ưng</option>
+              <option value="🐯">🐯 Hổ</option>
+              <option value="🔥">🔥 Hỏa</option>
+            </select>
+          </div>
+          <button class="btn" id="bCreateGuild" style="width:100%; justify-content:center; background:#059669; font-weight:700;">
+            Lập Bang (Phí: 500.000 Lượng)
+          </button>
+        </div>
+        <div class="btnrow"><button class="btn" onclick="closeModal()">Đóng</button></div>
+      `, () => {
+        $('#bCreateGuild').onclick = async () => {
+          const name = ($('#newGuildName').value || '').trim();
+          const emblem = $('#newGuildEmblem').value;
+          if (!name || name.length < 3) return toast('Tên bang phải từ 3 đến 16 ký tự');
+          if (typeof S !== 'undefined' && S.gold < 500000) return toast('Cần 500.000 lượng để lập bang');
+
+          const res = await this.createGuild(name, emblem);
+          if (res.ok) {
+            if (typeof S !== 'undefined') { S.gold -= 500000; save(); }
+            toast(`✅ Đã thành lập Bang Hội [${name}] thành công!`);
+            closeModal(true);
+            setTimeout(() => this.showGuildModal(), 300);
+          } else {
+            toast('Lỗi: ' + res.error);
+          }
+        };
+      });
+    }
+  },
+
+  async doJoinGuild(guildId) {
+    const res = await this.joinGuild(guildId);
+    if (res.ok) {
+      toast('✅ Đã gia nhập bang hội thành công!');
+      closeModal(true);
+      setTimeout(() => this.showGuildModal(), 300);
+    } else {
+      toast('Lỗi: ' + res.error);
+    }
+  },
+
+  /* ================= CHIẾN TRƯỜNG TỐNG KIM ================= */
+  async getTongKimStatus() {
+    const fullUrl = this.getHttpBase() + '/api/tongkim/status';
+    try {
+      const res = await fetch(fullUrl);
+      return await res.json();
+    } catch (e) {
+      return { ok: false, state: 'IDLE' };
+    }
+  },
+
+  async joinTongKim(side = 'auto') {
+    return await this.apiPost('/api/tongkim/join', { token: this.token, side });
+  },
+
+  async showTongKimModal() {
+    if (!this.token) return this.showAuthGate();
+    const data = await this.getTongKimStatus();
+    const stateMap = {
+      IDLE: '<span style="color:#94a3b8;">Chưa mở báo danh</span>',
+      REGISTER: '<span style="color:#38bdf8;">Đang mở Báo Danh</span>',
+      RUNNING: '<span style="color:#22c55e;">Đang diễn ra quyết liệt!</span>',
+      ENDED: '<span style="color:#ef4444;">Đã kết thúc</span>'
+    };
+
+    const lbRows = (data.leaderboard || []).map((p, idx) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:12px; border-bottom:1px solid #1a2e22;">
+        <span>${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1) + '.'} <b>${esc(p.name)}</b> <small style="color:${p.side === 'song' ? '#38bdf8' : '#fbbf24'};">[Phe ${p.side === 'song' ? 'Tống' : 'Kim'}]</small></span>
+        <span>${p.rank} · <b style="color:#a3e635;">${p.score} điểm</b> (${p.kills} hạ)</span>
+      </div>
+    `).join('') || '<div style="text-align:center; color:#94a3b8; padding:8px;">Chưa có dữ liệu chiến công</div>';
+
+    modal(`
+      <h3 style="color:#38bdf8;">⚔️ Chiến Trường Tống Kim</h3>
+      <div class="card" style="padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Trạng thái: <b>${stateMap[data.state] || data.state}</b></span>
+          <span>Thời gian: <b style="color:#fbbf24;">${Math.max(0, data.remainSeconds || 0)}s</b></span>
+        </div>
+
+        <div style="display:flex; gap:10px; margin:12px 0;">
+          <div style="flex:1; background:#0c2238; border:1px solid #0284c7; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#38bdf8; font-weight:700;">PHE TỐNG</div>
+            <div style="font-size:22px; font-weight:800; color:#fff;">${data.songScore || 0}</div>
+          </div>
+          <div style="flex:1; background:#38260c; border:1px solid #d97706; border-radius:8px; padding:10px; text-align:center;">
+            <div style="color:#fbbf24; font-weight:700;">PHE KIM</div>
+            <div style="font-size:22px; font-weight:800; color:#fff;">${data.jinScore || 0}</div>
+          </div>
+        </div>
+
+        ${(data.state === 'REGISTER' || data.state === 'RUNNING') ? `
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn" id="bJoinSong" style="flex:1; background:#0284c7; font-weight:700;">Gia Nhập Tống</button>
+            <button class="btn" id="bJoinAuto" style="flex:1; background:#475569; font-size:12px;">Ngẫu Nhiên</button>
+            <button class="btn" id="bJoinJin" style="flex:1; background:#d97706; font-weight:700;">Gia Nhập Kim</button>
+          </div>
+        ` : `
+          <div style="text-align:center; font-size:12px; color:#94a3b8; margin-top:8px;">
+            Khi chiến trường mở, đánh bại quái và đối thủ trong bản đồ sẽ tích lũy điểm chiến công nhận quân hàm!
+          </div>
+        `}
+      </div>
+
+      <h4>Bảng Xếp Hạng Chiến Công Top 10</h4>
+      <div class="card" style="max-height:160px; overflow-y:auto; padding:6px 12px; margin-bottom:12px;">
+        ${lbRows}
+      </div>
+
+      <div class="btnrow"><button class="btn" onclick="closeModal()">Đóng</button></div>
+    `, () => {
+      const doJoin = async (side) => {
+        const res = await this.joinTongKim(side);
+        if (res.ok) {
+          toast(`✅ Đã gia nhập phe ${res.side === 'song' ? 'Tống (Đại Tống)' : 'Kim (Đại Kim)'}! Hãy chiến đấu hết mình!`);
+          closeModal(true);
+        } else {
+          toast('Lỗi: ' + res.error);
+        }
+      };
+      const bS = $('#bJoinSong'); if (bS) bS.onclick = () => doJoin('song');
+      const bJ = $('#bJoinJin'); if (bJ) bJ.onclick = () => doJoin('jin');
+      const bA = $('#bJoinAuto'); if (bA) bA.onclick = () => doJoin('auto');
+    });
+  },
+
+  /* ================= CÔNG THÀNH CHIẾN (BIỆN KINH) ================= */
+  async getCongThanhStatus() {
+    const fullUrl = this.getHttpBase() + '/api/congthanh/status';
+    try {
+      const res = await fetch(fullUrl);
+      return await res.json();
+    } catch (e) {
+      return { ok: false };
+    }
+  },
+
+  async attackCongThanhPillar(dmg = 500) {
+    return await this.apiPost('/api/congthanh/attack', { token: this.token, damage: dmg });
+  },
+
+  async showSiegeModal() {
+    if (!this.token) return this.showAuthGate();
+    const data = await this.getCongThanhStatus();
+    const hpPct = Math.round(((data.pillarHp || 0) / (data.maxPillarHp || 1000000)) * 100);
+
+    const rankRows = (data.leaderboard || []).map((g, idx) => `
+      <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:12px; border-bottom:1px solid #1a2e22;">
+        <span>${idx + 1}. <b>${esc(g.name)}</b></span>
+        <span style="color:#fbbf24;">${fmt(g.damage)} sát thương</span>
+      </div>
+    `).join('') || '<div style="text-align:center; color:#94a3b8; padding:8px;">Chưa bang hội nào gây sát thương</div>';
+
+    modal(`
+      <h3 style="color:#f59e0b;">🚩 Công Thành Chiến: Khai Phong Phủ Biện Kinh</h3>
+      <div class="card" style="padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span>Chủ thành hiện tại:</span>
+          <b style="color:#fbbf24; font-size:14px;">${esc(data.controllingGuildName || 'Chưa có')}</b>
+        </div>
+        
+        <div style="margin:12px 0;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+            <span>Sinh Lực Long Trụ Biện Kinh:</span>
+            <b>${fmt(data.pillarHp)} / ${fmt(data.maxPillarHp)} (${hpPct}%)</b>
+          </div>
+          <div style="background:#1e293b; height:12px; border-radius:6px; overflow:hidden;">
+            <div style="background:linear-gradient(90deg, #f59e0b, #ef4444); width:${hpPct}%; height:100%;"></div>
+          </div>
+        </div>
+
+        <button class="btn" id="bAttackPillar" style="width:100%; justify-content:center; background:#ea580c; font-weight:700; padding:10px; border-radius:8px;">
+          ⚔️ Công Kích Long Trụ Hoàng Kim
+        </button>
+      </div>
+
+      <h4>Top Bang Hội Gây Sát Thương Cao Nhất</h4>
+      <div class="card" style="max-height:150px; overflow-y:auto; padding:6px 12px; margin-bottom:12px;">
+        ${rankRows}
+      </div>
+
+      <div class="btnrow"><button class="btn" onclick="closeModal()">Đóng</button></div>
+    `, () => {
+      $('#bAttackPillar').onclick = async () => {
+        const charDmg = (typeof R !== 'undefined' && R.P && R.P.dps) ? Math.round(R.P.dps * 3) : 1000;
+        const res = await this.attackCongThanhPillar(charDmg);
+        if (res.ok) {
+          toast(`💥 Gây -${fmt(res.damage)} sát thương lên Long Trụ!`);
+          if (res.conquered) {
+            toast(`👑 Chúc mừng Bang [${res.newMasterGuild}] đã đoạt quyền kiểm soát Biện Kinh Thành!`);
+          }
+          this.showSiegeModal();
+        } else {
+          toast('Lỗi: ' + res.error);
+        }
+      };
+    });
+  },
+
+  /* ================= LÔI ĐÀI 1v1 ================= */
+  showDuelListModal() {
+    if (!this.token) return this.showAuthGate();
+    const otherPlayers = [];
+    if (R.remotePlayers) {
+      for (const p of R.remotePlayers.values()) {
+        if (p.id !== this.myId) otherPlayers.push(p);
+      }
+    }
+
+    const rows = otherPlayers.length ? otherPlayers.map(p => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #1a2e22;">
+        <div>
+          <b style="color:#38bdf8;">${esc(p.name)}</b>
+          <div style="font-size:11px; color:#94a3b8;">Cấp ${p.lvl || 1} · ${(FAC && FAC[p.fac] && FAC[p.fac].n) || 'Chưa phái'}</div>
+        </div>
+        <button class="btn sm" onclick="NET.sendDuelInvite('${p.id}')">Thách Đấu 1v1</button>
+      </div>
+    `).join('') : '<div style="text-align:center; color:#94a3b8; padding:12px;">Hiện không có người chơi nào khác cùng bản đồ để tỉ thí. Hãy rủ bạn bè vào cùng bản đồ!</div>';
+
+    modal(`
+      <h3 style="color:#38bdf8;">🤺 Lôi Đài Tỉ Thí Võ Nghệ 1v1</h3>
+      <p class="desc">Thách đấu võ nghệ trực tiếp cùng các hiệp khách đang có mặt trên bản đồ.</p>
+      <div class="card" style="max-height:220px; overflow-y:auto; padding:8px 12px; margin-bottom:12px;">
+        ${rows}
+      </div>
+      <div class="btnrow"><button class="btn" onclick="closeModal()">Đóng</button></div>
+    `);
+  },
+
+  sendDuelInvite(targetId) {
+    this.send({ type: 'DUEL_INVITE', targetId });
+    toast('Đã gửi lời mời tỉ thí võ nghệ...');
+    closeModal(true);
+  },
+
+  showDuelPrompt(duelId, challengerName, challengerLvl) {
+    modal(`
+      <h3 style="color:#fbbf24;">⚔️ Lời Thách Đấu Võ Nghệ!</h3>
+      <div class="card" style="padding:14px; text-align:center; margin-bottom:14px;">
+        <p style="font-size:15px; color:#fff; margin-bottom:8px;">
+          Hiệp khách <b style="color:#38bdf8;">[${esc(challengerName)}]</b> (Cấp ${challengerLvl || 1})
+        </p>
+        <p style="font-size:13px; color:#cbd5e1;">
+          muốn cùng bạn bước lên Lôi Đài luận kiếm tỉ thí võ học! Bạn có đồng ý tiếp chiêu?
+        </p>
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="bDeclineDuel" style="background:#334155;">Từ Chối</button>
+        <button class="btn" id="bAcceptDuel" style="background:#059669; font-weight:700;">Tiếp Chiêu (Chấp Nhận)</button>
+      </div>
+    `, () => {
+      $('#bAcceptDuel').onclick = () => {
+        this.send({ type: 'DUEL_ACCEPT', duelId });
+        closeModal(true);
+      };
+      $('#bDeclineDuel').onclick = () => {
+        this.send({ type: 'DUEL_DECLINE', duelId });
+        closeModal(true);
+      };
+    });
   },
 
   promptServerHost() {
