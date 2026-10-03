@@ -268,7 +268,64 @@ function drawHeroAura(c, t, back) {
   }
   c.globalAlpha = 1;
 }
-const enemyName = e => `${e.n} · Lv${e.L}`;
+function drawChatBubble(c, x, y, text) {
+  if (!text) return;
+  c.save();
+  c.font = '11px "Noto Sans", sans-serif';
+  const tw = c.measureText(text).width;
+  const bw = Math.max(40, tw + 14), bh = 18;
+  const bx = x - bw / 2, by = y - bh;
+
+  c.fillStyle = 'rgba(12, 22, 17, 0.92)';
+  c.strokeStyle = '#4fd08f';
+  c.lineWidth = 1;
+  c.beginPath();
+  if (c.roundRect) c.roundRect(bx, by, bw, bh, 4);
+  else c.rect(bx, by, bw, bh);
+  c.fill(); c.stroke();
+
+  c.beginPath();
+  c.moveTo(x - 4, by + bh);
+  c.lineTo(x, by + bh + 4);
+  c.lineTo(x + 4, by + bh);
+  c.fillStyle = 'rgba(12, 22, 17, 0.92)';
+  c.fill();
+
+  c.fillStyle = '#ffffff';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(text, x, by + bh / 2 + 1);
+  c.restore();
+}
+
+function drawRemoteHero(c, p, dt) {
+  if (p.targetX !== undefined) {
+    p.x += (p.targetX - p.x) * Math.min(1, dt * 12);
+    p.y += (p.targetY - p.y) * Math.min(1, dt * 12);
+  }
+  const moving = p.targetX !== undefined && Math.hypot(p.targetX - p.x, p.targetY - p.y) > 2;
+
+  c.fillStyle = '#0007'; c.beginPath(); c.ellipse(p.x, p.y, 16, 6, 0, 0, 7); c.fill();
+
+  const hw = W && W.hero && W.hero[p.fac || 0];
+  const animKey = hw && hw.anim;
+  const act = p.isAttacking ? 'at' : (moving ? 'run' : 'st');
+  p.actT = (p.actT || 0) + dt;
+
+  const drawn = animKey && drawAnim(animKey, act, p.dir || 0, p.actT, p.x, p.y, HERO_SCALE);
+  if (!drawn && hw && hw.img) {
+    drawSprite(img(hw.img), hw.sz, p.x, p.y, 0.9, false);
+  }
+
+  const facName = (FAC && FAC[p.fac] && FAC[p.fac].n) || 'Võ Lâm';
+  label(p.x, p.y - 60, `[${facName}] ${p.name || 'Đại hiệp'} · Lv${p.lvl || 1}`, '#5fd4ff', 12, (p.hp || 100) / (p.maxHp || 100), '#38bdf8');
+
+  if (p.chatBubble && p.chatT > 0) {
+    p.chatT -= dt;
+    drawChatBubble(c, p.x, p.y - 70, p.chatBubble);
+  }
+}
+
 function bar(x, y, w, h, f, col) { CX.fillStyle = '#000a'; CX.fillRect(x, y, w, h); CX.fillStyle = col; CX.fillRect(x, y, w * clamp(f, 0, 1), h); }
 function draw(dt) {
   const c = CX; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, AR.w, AR.h);
@@ -295,10 +352,26 @@ function draw(dt) {
     if (!(e.animKey && drawAnim(e.animKey, 'die', e.dir || 0, e.actT, e.x, e.y, sc * MON_SCALE, a))) { c.globalAlpha = a * 0.5; drawSprite(e.img, e.sz, e.x, e.y, sc, e.face < 0); c.globalAlpha = 1; }
   }
   R.corpses = R.corpses.filter(e => e.actT < 1.6);
-  drawPet(c, dt);                                                           // dong hanh (rewards.js)
-  // ke dich (sap theo y de nguoi o duoi ve sau)
-  const ents = R.enemies.filter(e => !e.dead).concat([{ hero: true, y: H.y }]).sort((a, b) => a.y - b.y);
+  // dong hanh (rewards.js)
+  drawPet(c, dt);
+
+  // Dong bo vi tri cua ban than len may chu Online
+  if (window.NET && typeof NET.syncMove === 'function') {
+    NET.syncMove(H.x, H.y, H.dir, H.act === 'at');
+  }
+
+  // Danh sach tat ca thuc the tren san (Quai + Nhan vat chinh + Nguoi choi online khac)
+  const remoteHeroList = (window.R && R.remotePlayers) ? Array.from(R.remotePlayers.values()).map(p => ({ remoteHero: true, p, y: p.y })) : [];
+  const ents = R.enemies.filter(e => !e.dead)
+    .concat([{ hero: true, y: H.y }])
+    .concat(remoteHeroList)
+    .sort((a, b) => a.y - b.y);
+
   for (const e of ents) {
+    if (e.remoteHero) {
+      drawRemoteHero(c, e.p, dt);
+      continue;
+    }
     if (e.hero) {
       c.fillStyle = '#0007'; c.beginPath(); c.ellipse(H.x, H.y, 16, 6, 0, 0, 7); c.fill();
       drawHeroAura(c, performance.now() / 1000, true);
@@ -313,6 +386,7 @@ function draw(dt) {
       if (!drawn && !(hw && drawSprite(img(hw.img), hw.sz, H.x, H.y, 0.9, H.face < 0, R.deadT > 0 ? 0.35 : 1))) { c.fillStyle = SERIES_COL[heroSeries()]; c.beginPath(); c.arc(H.x, H.y - 20, 14, 0, 7); c.fill(); }
       if (R.hurtT > 0) { c.fillStyle = '#f004'; c.beginPath(); c.arc(H.x, H.y - 24, 20, 0, 7); c.fill(); }
       drawHeroAura(c, performance.now() / 1000, false);
+      if (H.chatBubble && H.chatT > 0) { H.chatT -= dt; drawChatBubble(c, H.x, H.y - 70, H.chatBubble); }
       continue;
     }
     const sc = e.cls === 'boss' ? 1.15 : e.cls === 'elite' ? 0.95 : 0.8;

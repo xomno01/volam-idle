@@ -1,0 +1,15 @@
+{
+  "name": "volam-online",
+  "version": "1.0.0",
+  "description": "Võ Lâm Idle Online - Web Game Kiếm Hiệp H5 Multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/test_online.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "author": "xomno01",
+  "license": "MIT"
+}

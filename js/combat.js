@@ -96,6 +96,9 @@ function heroHit(a, e) {
   if (counters(a.series, e.series)) tot += R.P.series5;
   tot = Math.max(1, tot);
   e.hp -= tot; e.hitT = 0.12; if (e.act !== 'at') { e.act = 'hurt'; e.actT = 0; npcSfx(MON[e.tid].anim, 'hurt', 0.3); }
+  if (window.NET && typeof NET.attackMonster === 'function') {
+    NET.attackMonster(e.id, tot);
+  }
   // Choáng: tinh anh / trùm có thời gian miễn nhiễm sau mỗi lần choáng (nếu không, chiêu 55-65% choáng + đánh nhanh khóa cứng trùm: trùm gần như không ra đòn)
   if (a.stun && !(e.stunImm > 0) && Math.random() * 100 < a.stun) { e.stun = e.cls === 'boss' ? 0.5 : 0.8; e.stunImm = e.cls === 'boss' ? STUN_IMM_BOSS : e.cls === 'elite' ? STUN_IMM_ELITE : 0; }
   if (R.P.leech) heal(tot * R.P.leech / 100, true);
