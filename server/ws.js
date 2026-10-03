@@ -278,6 +278,24 @@ class GameSocketServer {
       count: this.clients.size
     });
   }
+
+  sendToUser(userId, data) {
+    for (const [ws, client] of this.clients.entries()) {
+      if (client.user && client.user.id === userId) {
+        this.send(ws, data);
+        break;
+      }
+    }
+  }
+
+  broadcastNotice(text, color = "#ffdd4a") {
+    this.broadcastAll({
+      type: "SYSTEM_NOTICE",
+      text,
+      color,
+      time: Date.now()
+    });
+  }
 }
 
 module.exports = GameSocketServer;

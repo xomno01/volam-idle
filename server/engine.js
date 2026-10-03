@@ -167,6 +167,38 @@ class MapInstance {
     return res;
   }
 
+  spawnBoss(bossTid = null) {
+    const tid = bossTid || (this.zone.boss || Object.keys(MON)[0]);
+    const mInfo = MON[tid] || { n: "Trùm Hoàng Kim", sz: [40, 60, 20, 50] };
+    const level = Math.round((this.zone.hi || 10) + 5);
+    const maxHp = Math.round(5000 + level * 250);
+
+    const boss = {
+      id: "boss_" + this.zoneId + "_" + (this.nextMonsterId++),
+      tid,
+      n: "★ " + (mInfo.n || "Trùm Hoàng Kim"),
+      sz: mInfo.sz,
+      L: level,
+      cls: "boss",
+      series: Math.floor(Math.random() * 5),
+      x: 750,
+      y: 750,
+      spawnX: 750,
+      spawnY: 750,
+      hp: maxHp,
+      maxHp: maxHp,
+      dmg: Math.round(40 + level * 5),
+      def: Math.round(15 + level * 3),
+      targetId: null,
+      isDead: false,
+      respawnTimer: 0,
+      act: "st",
+      dir: 0
+    };
+    this.monsters.set(boss.id, boss);
+    return this.getMonsterSummary(boss);
+  }
+
   getMonsterSummary(m) {
     return {
       id: m.id,
@@ -266,6 +298,19 @@ class RealtimeGameEngine {
     const finalDmg = isCrit ? Math.round(dmg * 1.6) : dmg;
 
     return map.damageMonster(monsterId, attacker, finalDmg, isCrit);
+  }
+
+  spawnCustomBoss(zoneId, bossTid = null) {
+    const map = this.getOrCreateMap(zoneId);
+    const boss = map.spawnBoss(bossTid);
+    if (this.broadcastCallback) {
+      this.broadcastCallback(zoneId, {
+        type: "MONSTER_SPAWN",
+        monster: boss,
+        isBoss: true
+      });
+    }
+    return boss;
   }
 
   tick(dt) {

@@ -26,9 +26,23 @@ const NET = {
     this.initUI();
   },
 
+  getServerHost() {
+    const custom = localStorage.getItem('vlo_server_host');
+    if (custom) return custom.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '').replace(/\/$/, '');
+    return location.host;
+  },
+
+  getHttpBase() {
+    const host = this.getServerHost();
+    if (host === location.host) return '';
+    const protocol = (location.protocol === 'https:' || host.includes('trycloudflare.com')) ? 'https:' : 'http:';
+    return `${protocol}//${host}`;
+  },
+
   connect() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}`;
+    const host = this.getServerHost();
+    const protocol = (location.protocol === 'https:' || host.includes('trycloudflare.com')) ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${host}`;
     console.log('[NET] Đang kết nối tới máy chủ Online:', wsUrl);
 
     try {
@@ -322,7 +336,8 @@ const NET = {
   // --- API GỌI REST ---
   async apiPost(url, data) {
     try {
-      const res = await fetch(url, {
+      const fullUrl = (url.startsWith('http://') || url.startsWith('https://')) ? url : (this.getHttpBase() + url);
+      const res = await fetch(fullUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -380,7 +395,8 @@ const NET = {
   async loadCloud(slot = 0) {
     if (!this.token) return { ok: false, error: 'Chưa đăng nhập' };
     try {
-      const res = await fetch(`/api/load?token=${this.token}&slot=${slot}`);
+      const fullUrl = this.getHttpBase() + `/api/load?token=${this.token}&slot=${slot}`;
+      const res = await fetch(fullUrl);
       return await res.json();
     } catch (e) {
       return { ok: false, error: 'Lỗi nạp dữ liệu đám mây' };

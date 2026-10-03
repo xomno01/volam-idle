@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Võ Lâm Online — Admin Dashboard</title>
+  <link rel="stylesheet" href="fonts/font.css">
+  <style>
+    :root {
+      --bg: #090e0c;
+      --card-bg: #121c17;
+      --card-border: #1f3328;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --gold: #fbbf24;
+      --cyan: #38bdf8;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Topbar */
+    header {
+      background: rgba(14, 24, 20, 0.95);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(8px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--gold); }
+    .brand span { font-size: 20px; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .status-pill {
+      background: #064e3b; border: 1px solid var(--primary); color: #6ee7b7;
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .btn {
+      background: var(--primary); color: #fff; border: none; padding: 6px 14px;
+      border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-gold { background: #b45309; }
+    .btn-gold:hover { background: #d97706; }
+    .btn-red { background: #b91c1c; }
+    .btn-red:hover { background: #dc2626; }
+    .btn-secondary { background: #334155; }
+    .btn-secondary:hover { background: #475569; }
+
+    /* Main Container */
+    .container { flex: 1; display: flex; max-width: 1400px; width: 100%; margin: 0 auto; padding: 20px; gap: 24px; }
+
+    /* Sidebar Navigation */
+    nav.sidebar {
+      width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+    }
+    .nav-item {
+      padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      color: var(--text-dim); background: transparent; border: none; cursor: pointer;
+      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+      transition: all 0.2s;
+    }
+    .nav-item:hover { background: #17261f; color: #fff; }
+    .nav-item.active { background: #164e33; color: #6ee7b7; border-left: 3px solid var(--primary); }
+
+    /* Content Area */
+    main.content { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards & Stats */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 20px; margin-bottom: 20px;
+    }
+    .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .stat-card .label { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); }
+    .stat-card .value { font-size: 26px; font-weight: 800; color: #fff; }
+    .stat-card .desc { font-size: 12px; color: #10b981; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--card-border); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { background: #17261f; color: var(--gold); padding: 12px 14px; font-weight: 600; }
+    td { padding: 12px 14px; border-bottom: 1px solid #1a2e23; color: #cbd5e1; }
+    tr:hover td { background: #14221b; }
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-online { background: #065f46; color: #34d399; }
+    .badge-offline { background: #334155; color: #94a3b8; }
+    .badge-banned { background: #7f1d1d; color: #f87171; }
+
+    /* Forms */
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: #cbd5e1; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    input, select, textarea {
+      background: #0a110e; border: 1px solid var(--card-border); border-radius: 6px;
+      color: #fff; padding: 8px 12px; font-size: 13px; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);
+      display: none; justify-content: center; align-items: center; z-index: 100;
+    }
+    .modal-box {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 12px; max-width: 500px; width: 90%; padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    .modal-box h3 { color: var(--gold); margin-bottom: 16px; font-size: 18px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+    /* Login Screen */
+    #loginScreen {
+      position: fixed; inset: 0; background: #090e0c; z-index: 200;
+      display: flex; justify-content: center; align-items: center; padding: 20px;
+    }
+    .login-card {
+      background: var(--card-bg); border: 1px solid #10b981;
+      border-radius: 16px; padding: 32px; max-width: 400px; width: 100%;
+      text-align: center; box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
+    }
+    .login-card h2 { color: var(--gold); font-size: 22px; margin-bottom: 8px; }
+    .login-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+
+  <!-- Màn Hình Đăng Nhập Admin -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div style="font-size: 40px; margin-bottom: 12px">👑</div>
+      <h2>Võ Lâm Online</h2>
+      <p>Bảng Điều Khiển Quản Trị Viên (Admin Dashboard)</p>
+      <div class="form-group" style="text-align:left">
+        <label>Mật mã Admin:</label>
+        <input type="password" id="adminPassInput" placeholder="Nhập mật khẩu Admin" autofocus>
+      </div>
+      <button class="btn" id="loginBtn" style="width: 100%; justify-content: center; padding: 10px; font-size: 14px">
+        Xác Thực Quản Trị
+      </button>
+      <div id="loginError" style="color: var(--red); font-size: 12px; margin-top: 12px; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <span>⚔</span> Võ Lâm Online — Admin Dashboard
+    </div>
+    <div class="top-actions">
+      <div class="status-pill">
+        <div class="dot"></div> Server Online: <b id="topCcu">0</b>
+      </div>
+      <button class="btn btn-secondary" onclick="logoutAdmin()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+      <button class="nav-item active" onclick="switchTab('tab-overview')">📊 Tổng Quan Server</button>
+      <button class="nav-item" onclick="switchTab('tab-players')">👥 Quản Lý Người Chơi</button>
+      <button class="nav-item" onclick="switchTab('tab-dispenser')">🎁 Kho Đồ & Tặng Quà</button>
+      <button class="nav-item" onclick="switchTab('tab-world')">🗺️ Thế Giới & Gọi Boss</button>
+      <button class="nav-item" onclick="switchTab('tab-broadcast')">📢 Thông Báo Toàn Server</button>
+    </nav>
+
+    <!-- Content Area -->
+    <main class="content">
+
+      <!-- TAB 1: TỔNG QUAN -->
+      <section id="tab-overview" class="tab-pane active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Người Chơi Online (CCU)</div>
+            <div class="value" id="statCcu">0</div>
+            <div class="desc">Thời gian thực</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Tổng Số Tài Khoản</div>
+            <div class="value" id="statUsers">0</div>
+            <div class="desc" id="statChars">0 nhân vật</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Bộ Nhớ RAM Máy Chủ</div>
+            <div class="value" id="statRam">0 MB</div>
+            <div class="desc">Ổn định</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Thời Gian Hoạt Động (Uptime)</div>
+            <div class="value" id="statUptime">0h 0m</div>
+            <div class="desc">Node.js Engine 20Hz</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>⚡ Thao Tác Nhanh Máy Chủ</h3>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-gold" onclick="switchTab('tab-broadcast')">📢 Phát Thông Báo Server</button>
+            <button class="btn" onclick="quickGiftAll()">🎁 Thưởng Toàn Server (10M Lượng)</button>
+            <button class="btn btn-red" onclick="quickSpawnBoss()">🔥 Gọi Boss Ngay Tại Hoa Sơn</button>
+            <button class="btn btn-secondary" onclick="loadOverview()">🔄 Làm Mới Dữ Liệu</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: QUẢN LÝ NGƯỜI CHƠI -->
+      <section id="tab-players" class="tab-pane">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3>👥 Danh Sách Tài Khoản & Nhân Vật</h3>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="playerSearch" placeholder="Tìm theo tên/tài khoản..." oninput="debouncePlayerSearch()">
+              <button class="btn" onclick="loadPlayers()">Tìm</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tài Khoản</th>
+                  <th>Tên Nhân Vật</th>
+                  <th>Môn Phái</th>
+                  <th>Cấp</th>
+                  <th>Ngân Lượng</th>
+                  <th>Ải</th>
+                  <th>Trạng Thái</th>
+                  <th>Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="playerTableBody">
+                <tr><td colspan="8" style="text-align:center">Đang tải danh sách...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: PHÁT ĐỒ & VẬT PHẨM -->
+      <section id="tab-dispenser" class="tab-pane">
+        <div class="card">
+          <h3>🎁 Kho Quà Tặng & Phân Phát Vật Phẩm</h3>
+          <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
+            Phát trực tiếp ngân lượng, huyền tinh hoặc nguyên liệu quý hiếm vào túi đồ nhân vật.
+          </p>
+
+          <div class="form-group">
+            <label>Đối Tượng Nhận Quà:</label>
+            <select id="giftTarget">
+              <option value="ALL">★ TOÀN BỘ MÁY CHỦ (Tất cả người chơi)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tặng Ngân Lượng:</label>
+              <input type="number" id="giftGold" placeholder="Ví dụ: 10000000 (10 triệu lượng)" value="10000000">
+            </div>
+            <div class="form-group">
+              <label>Huyền Tinh:</label>
+              <div style="display:flex; gap:8px;">
+                <select id="giftHtLevel" style="width:120px;">
+                  <option value="5">Cấp 5 (Max)</option>
+                  <option value="4">Cấp 4</option>
+                  <option value="3">Cấp 3</option>
+                  <option value="2">Cấp 2</option>
+                  <option value="1">Cấp 1</option>
+                </select>
+                <input type="number" id="giftHtAmount" placeholder="Số lượng" value="50" style="flex:1">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tinh Hồng Bảo Thạch:</label>
+              <input type="number" id="giftThbt" value="20">
+            </div>
+            <div class="form-group">
+              <label>Thủy Tinh Trắng:</label>
+              <input type="number" id="giftWc" value="50">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Lời Nhắn Kèm Theo (Gửi tới game):</label>
+            <input type="text" id="giftMsg" value="Quà tặng đặc biệt từ Quản Trị Viên máy chủ!">
+          </div>
+
+          <button class="btn btn-gold" onclick="submitGift()" style="padding:10px 20px; font-size:14px;">
+            🎁 Tiến Hành Phát Quà
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 4: THẾ GIỚI & GỌI BOSS -->
+      <section id="tab-world" class="tab-pane">
+        <div class="card">
+          <h3>🗺️ Triệu Hồi Boss Hoàng Kim Tức Thời</h3>
+          <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
+            Kích hoạt xuất hiện Boss Hoàng Kim ngay lập tức tại bản đồ chỉ định để nhóm bạn cùng hợp sức săn trùm!
+          </p>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Chọn Bản Đồ Triệu Hồi:</label>
+              <select id="bossZoneSel">
+                <option value="2">Bản đồ 2 — Hoa Sơn (Cấp 1-10)</option>
+                <option value="3">Bản đồ 3 — Thục Sơn (Cấp 11-20)</option>
+                <option value="7">Bản đồ 7 — Lâm Du Quan (Cấp 51-60)</option>
+                <option value="19">Bản đồ 19 — Trường Bạch Sơn (Cấp 71-80)</option>
+                <option value="21">Bản đồ 21 — Mạc Cao Quật (Cấp 81-90)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tên / Loại Boss:</label>
+              <select id="bossTidSel">
+                <option value="">Boss Chuẩn Theo Bản Đồ</option>
+                <option value="ani061">Cổ Bách (Đại Boss Côn Lôn)</option>
+                <option value="ani063">Lam Y Y (Đại Boss Thúy Yên)</option>
+                <option value="ani049">Hà Nhân Ngã (Đại Boss Cái Bang)</option>
+                <option value="ani018">Huyền Giác Thiền Sư (Đại Boss Thiếu Lâm)</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-red" onclick="submitSpawnBoss()" style="padding:10px 20px; font-size:14px;">
+            🔥 Triệu Hồi Boss Ngay
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 5: THÔNG BÁO SERVER -->
+      <section id="tab-broadcast" class="tab-pane">
+        <div class="card">
+          <h3>📢 Phát Thông Báo Chữ To Toàn Server</h3>
+          <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px;">
+            Gửi thông báo nổi bật xuất hiện ngay chính giữa màn hình của tất cả người chơi đang online.
+          </p>
+
+          <div class="form-group">
+            <label>Nội Dung Thông Báo:</label>
+            <textarea id="broadcastTextInput" rows="3" placeholder="Ví dụ: Máy chủ sẽ mở sự kiện Săn Boss Hoàng Kim lúc 20:00!"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Màu Sắc Thông Báo:</label>
+            <select id="broadcastColorSel">
+              <option value="#ffdd4a">Vàng Hoàng Kim (Mặc định)</option>
+              <option value="#ff4444">Đỏ Chiến Trường (Khẩn cấp / Boss)</option>
+              <option value="#38bdf8">Xanh Băng Tuyết (Thư giãn)</option>
+              <option value="#4ade80">Xanh Lục Bảo (Chúc mừng)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-gold" onclick="submitBroadcast()" style="padding:10px 20px; font-size:14px;">
+            📢 Gửi Thông Báo Toàn Server
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL SỬA CHỈ SỐ NHÂN VẬT -->
+  <div class="modal-backdrop" id="editModal">
+    <div class="modal-box">
+      <h3>✏️ Sửa Chỉ Số Nhân Vật</h3>
+      <input type="hidden" id="editUserId">
+      <div class="form-group">
+        <label>Tên Nhân Vật:</label>
+        <input type="text" id="editName" maxlength="16">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cấp Độ (1 - 200):</label>
+          <input type="number" id="editLvl" min="1" max="200">
+        </div>
+        <div class="form-group">
+          <label>Ải Hiện Tại:</label>
+          <input type="number" id="editStage" min="1" max="180">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Ngân Lượng (Vàng):</label>
+        <input type="number" id="editGold" min="0">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Hủy</button>
+        <button class="btn" onclick="savePlayerEdit()">Lưu Thay Đổi</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FACTIONS = ["Thiếu Lâm", "Thiên Vương", "Đường Môn", "Ngũ Độc", "Nga My", "Thúy Yên", "Cái Bang", "Thiên Nhẫn", "Võ Đang", "Côn Lôn"];
+    let token = sessionStorage.getItem("vlo_admin_token");
+
+    function checkAuth() {
+      if (token) {
+        document.getElementById("loginScreen").style.display = "none";
+        loadOverview();
+        loadPlayers();
+      } else {
+        document.getElementById("loginScreen").style.display = "flex";
+      }
+    }
+
+    document.getElementById("loginBtn").onclick = async () => {
+      const pass = document.getElementById("adminPassInput").value;
+      const err = document.getElementById("loginError");
+      err.style.display = "none";
+
+      try {
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: pass })
+        });
+        const data = await res.json();
+        if (data.ok && data.token) {
+          token = data.token;
+          sessionStorage.setItem("vlo_admin_token", token);
+          document.getElementById("loginScreen").style.display = "none";
+          loadOverview();
+          loadPlayers();
+        } else {
+          err.textContent = data.error || "Mật khẩu sai";
+          err.style.display = "block";
+        }
+      } catch (e) {
+        err.textContent = "Không thể kết nối máy chủ";
+        err.style.display = "block";
+      }
+    };
+
+    function logoutAdmin() {
+      sessionStorage.removeItem("vlo_admin_token");
+      token = null;
+      location.reload();
+    }
+
+    async function adminFetch(url, options = {}) {
+      if (!options.headers) options.headers = {};
+      options.headers["x-admin-token"] = token;
+      options.headers["Content-Type"] = "application/json";
+      const res = await fetch(url, options);
+      if (res.status === 403) {
+        logoutAdmin();
+        return { ok: false, error: "Phiên hết hạn" };
+      }
+      return await res.json();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+
+      const targetPane = document.getElementById(tabId);
+      if (targetPane) targetPane.classList.add("active");
+
+      const navBtns = document.querySelectorAll(".nav-item");
+      const map = {
+        'tab-overview': 0, 'tab-players': 1, 'tab-dispenser': 2, 'tab-world': 3, 'tab-broadcast': 4
+      };
+      if (navBtns[map[tabId]]) navBtns[map[tabId]].classList.add("active");
+
+      if (tabId === 'tab-overview') loadOverview();
+      if (tabId === 'tab-players') loadPlayers();
+    }
+
+    async function loadOverview() {
+      const data = await adminFetch("/api/admin/overview");
+      if (!data.ok) return;
+
+      document.getElementById("topCcu").textContent = data.ccu;
+      document.getElementById("statCcu").textContent = data.ccu;
+      document.getElementById("statUsers").textContent = data.totalAccounts;
+      document.getElementById("statChars").textContent = data.totalCharacters + " nhân vật";
+      document.getElementById("statRam").textContent = data.memoryUsageMB + " MB";
+
+      const h = Math.floor(data.uptime / 3600);
+      const m = Math.floor((data.uptime % 3600) / 60);
+      document.getElementById("statUptime").textContent = `${h}h ${m}m`;
+    }
+
+    let playersCache = [];
+    async function loadPlayers() {
+      const q = document.getElementById("playerSearch").value;
+      const data = await adminFetch("/api/admin/players?q=" + encodeURIComponent(q));
+      if (!data.ok) return;
+
+      playersCache = data.players || [];
+      const tbody = document.getElementById("playerTableBody");
+      const targetSelect = document.getElementById("giftTarget");
+
+      if (!playersCache.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#94a3b8">Không tìm thấy người chơi nào</td></tr>`;
+        return;
+      }
+
+      // Cập nhật bảng
+      tbody.innerHTML = playersCache.map(p => `
+        <tr>
+          <td><b>${escapeHtml(p.username)}</b></td>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${FACTIONS[p.fac] || 'Chưa vào phái'}</td>
+          <td><b>${p.lvl}</b></td>
+          <td style="color:var(--gold)">${formatNum(p.gold)}</td>
+          <td>Ải ${p.stage}</td>
+          <td>
+            ${p.isBanned ? '<span class="badge badge-banned">Khóa</span>' : (p.isOnline ? '<span class="badge badge-online">Online</span>' : '<span class="badge badge-offline">Offline</span>')}
+          </td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn" style="padding:2px 8px; font-size:11px" onclick="openEditModal('${p.userId}')">Sửa</button>
+              <button class="btn btn-gold" style="padding:2px 8px; font-size:11px" onclick="selectGiftPlayer('${p.userId}')">Tặng</button>
+              ${p.isOnline ? `<button class="btn btn-secondary" style="padding:2px 8px; font-size:11px" onclick="kickUser('${p.userId}')">Kick</button>` : ''}
+              ${p.isBanned ? `<button class="btn" style="padding:2px 8px; font-size:11px" onclick="unbanUser('${p.userId}')">Mở khóa</button>` : `<button class="btn btn-red" style="padding:2px 8px; font-size:11px" onclick="banUser('${p.userId}')">Khóa</button>`}
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      // Cập nhật danh sách chọn ở tab tặng quà
+      targetSelect.innerHTML = `<option value="ALL">★ TOÀN BỘ MÁY CHỦ (Tất cả người chơi)</option>` +
+        playersCache.map(p => `<option value="${p.userId}">[${p.username}] ${p.name} (Lv${p.lvl})</option>`).join("");
+    }
+
+    let searchTimer = null;
+    function debouncePlayerSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadPlayers, 300);
+    }
+
+    function openEditModal(userId) {
+      const p = playersCache.find(x => x.userId === userId);
+      if (!p) return;
+      document.getElementById("editUserId").value = p.userId;
+      document.getElementById("editName").value = p.name;
+      document.getElementById("editLvl").value = p.lvl;
+      document.getElementById("editGold").value = p.gold;
+      document.getElementById("editStage").value = p.stage;
+      document.getElementById("editModal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
+
+    async function savePlayerEdit() {
+      const userId = document.getElementById("editUserId").value;
+      const updates = {
+        name: document.getElementById("editName").value,
+        lvl: Number(document.getElementById("editLvl").value),
+        gold: Number(document.getElementById("editGold").value),
+        stage: Number(document.getElementById("editStage").value)
+      };
+
+      const res = await adminFetch("/api/admin/player/update", {
+        method: "POST",
+        body: JSON.stringify({ userId, updates })
+      });
+
+      if (res.ok) {
+        alert("Đã cập nhật chỉ số thành công!");
+        closeEditModal();
+        loadPlayers();
+      } else {
+        alert("Lỗi: " + res.error);
+      }
+    }
+
+    function selectGiftPlayer(userId) {
+      switchTab('tab-dispenser');
+      document.getElementById("giftTarget").value = userId;
+    }
+
+    async function submitGift() {
+      const target = document.getElementById("giftTarget").value;
+      const gift = {
+        gold: Number(document.getElementById("giftGold").value),
+        htLevel: Number(document.getElementById("giftHtLevel").value),
+        htAmount: Number(document.getElementById("giftHtAmount").value),
+        thbt: Number(document.getElementById("giftThbt").value),
+        wc: Number(document.getElementById("giftWc").value),
+        message: document.getElementById("giftMsg").value
+      };
+
+      if (target === "ALL") {
+        if (!confirm("Bạn có chắc chắn muốn phát số quà này cho TOÀN BỘ người chơi trên máy chủ?")) return;
+        const res = await adminFetch("/api/admin/server-gift", {
+          method: "POST",
+          body: JSON.stringify({ gift })
+        });
+        alert(res.ok ? `Đã phát quà thành công cho ${res.affectedCount} người chơi!` : "Lỗi: " + res.error);
+      } else {
+        const res = await adminFetch("/api/admin/player/give", {
+          method: "POST",
+          body: JSON.stringify({ userId: target, gift })
+        });
+        alert(res.ok ? "Đã phát quà thành công cho người chơi!" : "Lỗi: " + res.error);
+      }
+      loadPlayers();
+    }
+
+    async function quickGiftAll() {
+      if (!confirm("Tặng ngay 10.000.000 lượng cho TẤT CẢ người chơi?")) return;
+      const res = await adminFetch("/api/admin/server-gift", {
+        method: "POST",
+        body: JSON.stringify({ gift: { gold: 10000000, message: "Nhận 10.000.000 lượng thưởng từ Quản Trị Viên!" } })
+      });
+      alert(res.ok ? "Đã phát thành công!" : "Lỗi: " + res.error);
+      loadPlayers();
+    }
+
+    async function kickUser(userId) {
+      if (!confirm("Kick người chơi này khỏi server?")) return;
+      const res = await adminFetch("/api/admin/player/kick", {
+        method: "POST",
+        body: JSON.stringify({ userId, reason: "Bị ngắt kết nối bởi Quản trị viên" })
+      });
+      alert(res.ok ? "Đã ngắt kết nối người chơi!" : "Lỗi: " + res.error);
+      loadPlayers();
+    }
+
+    async function banUser(userId) {
+      const reason = prompt("Lý do khóa tài khoản:", "Vi phạm quy định máy chủ");
+      if (!reason) return;
+      const res = await adminFetch("/api/admin/player/ban", {
+        method: "POST",
+        body: JSON.stringify({ userId, reason })
+      });
+      alert(res.ok ? "Đã khóa tài khoản thành công!" : "Lỗi: " + res.error);
+      loadPlayers();
+    }
+
+    async function unbanUser(userId) {
+      if (!confirm("Mở khóa tài khoản này?")) return;
+      const res = await adminFetch("/api/admin/player/unban", {
+        method: "POST",
+        body: JSON.stringify({ userId })
+      });
+      alert(res.ok ? "Đã mở khóa tài khoản!" : "Lỗi: " + res.error);
+      loadPlayers();
+    }
+
+    async function submitSpawnBoss() {
+      const zoneId = Number(document.getElementById("bossZoneSel").value);
+      const bossTid = document.getElementById("bossTidSel").value || null;
+      const res = await adminFetch("/api/admin/spawn-boss", {
+        method: "POST",
+        body: JSON.stringify({ zoneId, bossTid })
+      });
+      if (res.ok) {
+        alert(`Đã triệu hồi thành công Boss [${res.boss.n}] tại bản đồ ${zoneId}!`);
+      } else {
+        alert("Lỗi: " + res.error);
+      }
+    }
+
+    async function quickSpawnBoss() {
+      const res = await adminFetch("/api/admin/spawn-boss", {
+        method: "POST",
+        body: JSON.stringify({ zoneId: 2, bossTid: "ani061" })
+      });
+      if (res.ok) {
+        alert(`Đã triệu hồi Boss Cổ Bách tại Hoa Sơn!`);
+      }
+    }
+
+    async function submitBroadcast() {
+      const text = document.getElementById("broadcastTextInput").value.trim();
+      const color = document.getElementById("broadcastColorSel").value;
+      if (!text) return alert("Vui lòng nhập nội dung thông báo!");
+
+      const res = await adminFetch("/api/admin/broadcast", {
+        method: "POST",
+        body: JSON.stringify({ text, color })
+      });
+      if (res.ok) {
+        alert("Đã phát thông báo toàn server thành công!");
+        document.getElementById("broadcastTextInput").value = "";
+      } else {
+        alert("Lỗi: " + res.error);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+    function formatNum(n) {
+      return Number(n || 0).toLocaleString("vi-VN");
+    }
+
+    // Tự động kiểm tra đăng nhập khi mở trang
+    checkAuth();
+    setInterval(() => {
+      if (token && document.getElementById("tab-overview").classList.contains("active")) {
+        loadOverview();
+      }
+    }, 5000);
+  </script>
+</body>
+</html>
